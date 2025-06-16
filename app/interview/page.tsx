@@ -56,22 +56,22 @@ export default function InterviewPage() {
     fetch('/api/ip-points', {
       method: 'GET'
     })
-    .then(response => response.json())
-    .then(data => {
-      console.log("IP points data:", JSON.stringify(data))
-      if (data.points !== undefined) {
-        setUserPoints(data.points)
-        localStorage.setItem("userPoints", data.points.toString())
-      }
-    })
-    .catch(error => {
-      console.error("Error fetching IP points:", error)
-    })
+      .then(response => response.json())
+      .then(data => {
+        console.log("IP points data:", JSON.stringify(data))
+        if (data.points !== undefined) {
+          setUserPoints(data.points)
+          localStorage.setItem("userPoints", data.points.toString())
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching IP points:", error)
+      })
   }, [])
 
   // Set up global functions for AudioRecorder callback
   useEffect(() => {
-    ;(window as any).addQuestionToChat = (question: string) => {
+    ; (window as any).addQuestionToChat = (question: string) => {
       console.log("Adding question to chat:", question)
       const questionMessage: Message = {
         id: Date.now().toString(),
@@ -82,16 +82,16 @@ export default function InterviewPage() {
       setMessages(prev => [...prev, questionMessage])
     }
 
-    ;(window as any).addResponseToChat = (response: string) => {
-      console.log("Adding response to chat:", response)
-      const responseMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'response',
-        content: response,
-        timestamp: new Date()
+      ; (window as any).addResponseToChat = (response: string) => {
+        console.log("Adding response to chat:", response)
+        const responseMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'response',
+          content: response,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, responseMessage])
       }
-      setMessages(prev => [...prev, responseMessage])
-    }
 
     // Cleanup
     return () => {
@@ -111,27 +111,27 @@ export default function InterviewPage() {
   const handleScroll = (event: any) => {
     const scrollArea = event.target
     const isAtBottom = scrollArea.scrollTop + scrollArea.clientHeight >= scrollArea.scrollHeight - 50
-    
+
     setIsUserScrolling(!isAtBottom)
   }
 
   const toggleLiveMode = async () => {
     console.log("Toggling live mode, current state:", isLiveMode, "-> will become:", !isLiveMode)
-    
+
     if (!isLiveMode) {
       // Start live mode with loading
       setIsActivatingLive(true)
       console.log("Starting live interview mode...")
-      
+
       try {
         // Reduced initialization delay for faster response
         await new Promise(resolve => setTimeout(resolve, 800))
-        
+
         setIsLiveMode(true)
         setIsListening(true)
         setCurrentStatus('listening')
         console.log("Live mode ACTIVATED - isLiveMode set to TRUE")
-        
+
         // Add welcome message only if no messages exist
         if (messages.length === 0) {
           const welcomeMessage: Message = {
@@ -140,7 +140,7 @@ export default function InterviewPage() {
             content: "🎤 Modalità Live attivata! Sono pronto ad ascoltare le domande dell'intervistatore e fornire risposte basate sul tuo profilo.",
             timestamp: new Date()
           }
-          
+
           setMessages([welcomeMessage])
         }
       } catch (error) {
@@ -160,11 +160,11 @@ export default function InterviewPage() {
 
   const toggleListening = () => {
     if (!isLiveMode) return
-    
+
     console.log("Toggling listening, current state:", isListening)
     const newListeningState = !isListening
     setIsListening(newListeningState)
-    
+
     if (newListeningState) {
       setCurrentStatus('listening')
       console.log("Microphone STARTED - isListening set to TRUE")
@@ -177,7 +177,7 @@ export default function InterviewPage() {
   // Handle transcription from AudioRecorder - VELOCITÀ MASSIMA  
   const handleTranscription = async (text: string) => {
     console.log("🚀 DOMANDA CAPTATA ISTANTANEAMENTE:", text)
-    
+
     if (!isLiveMode || userPoints < 1) {
       console.log("Not processing - live mode inactive or insufficient points")
       return
@@ -193,9 +193,9 @@ export default function InterviewPage() {
       content: text,
       timestamp: new Date()
     }
-    
+
     setMessages(prev => [...prev, questionMessage])
-    
+
     // Add processing status message
     const processingMessage: Message = {
       id: (Date.now() + 0.1).toString(),
@@ -204,9 +204,9 @@ export default function InterviewPage() {
       timestamp: new Date(),
       statusType: 'processing'
     }
-    
+
     setMessages(prev => [...prev, processingMessage])
-    
+
     // Processa AI in parallelo (non bloccare UI)
     generateAIResponse(text).catch(error => {
       console.error("Errore AI:", error)
@@ -230,10 +230,9 @@ export default function InterviewPage() {
     }
 
     console.log("Generating AI response for:", question)
-    
-    // Set status to generating immediately
+
     setCurrentStatus('generating')
-    
+
     try {
       // Deduct 1 point from IP-based system
       const pointsResponse = await fetch('/api/ip-points', {
@@ -241,33 +240,30 @@ export default function InterviewPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'deduct', points: 1 })
       })
-      
+
       const pointsData = await pointsResponse.json()
       console.log("Points deducted for response:", pointsData)
-      
+
       const newPoints = pointsData.points
       setUserPoints(newPoints)
       localStorage.setItem("userPoints", newPoints.toString())
     } catch (error) {
       console.error("Error deducting points:", error)
-      // Fallback to localStorage
       const newPoints = userPoints - 1
       setUserPoints(newPoints)
       localStorage.setItem("userPoints", newPoints.toString())
     }
 
-    // Set status to generating
     setCurrentStatus('generating')
-    
-    // Add generating status message
+
     const generatingMessage: Message = {
       id: (Date.now() + 0.3).toString(),
       type: 'status',
-      content: "🤖 Generando risposta personalizzata...",
+      content: "🤖 Generating enhanced personalized response...",
       timestamp: new Date(),
       statusType: 'generating'
     }
-    
+
     setMessages(prev => [...prev, generatingMessage])
 
     try {
@@ -275,9 +271,18 @@ export default function InterviewPage() {
       const jobData = localStorage.getItem("jobData")
       const parsedJobData = jobData ? JSON.parse(jobData) : null
 
-      const userProfile = parsedJobData ? 
-        `Posizione: ${parsedJobData.jobTitle}\nBackground: ${parsedJobData.jobDescription}` : 
-        "Candidato generico"
+      // NEW: Get enhanced document analyses
+      const documentAnalyses = localStorage.getItem("documentAnalyses")
+      const parsedDocumentAnalyses = documentAnalyses ? JSON.parse(documentAnalyses) : []
+
+      const userProfile = parsedJobData ?
+        `Position: ${parsedJobData.jobTitle}\nBackground: ${parsedJobData.jobDescription}` :
+        "Generic candidate"
+
+      console.log("Sending enhanced request with document analyses:", {
+        documentAnalysesCount: parsedDocumentAnalyses.length,
+        userProfile: userProfile.substring(0, 100) + '...'
+      })
 
       const response = await fetch('/api/interview-response', {
         method: 'POST',
@@ -287,16 +292,18 @@ export default function InterviewPage() {
         body: JSON.stringify({
           question,
           userProfile,
-          jobTitle: parsedJobData?.jobTitle || "Posizione non specificata",
-          language
+          jobTitle: parsedJobData?.jobTitle || "Position not specified",
+          language,
+          // NEW: Pass document analyses to API
+          documentAnalyses: parsedDocumentAnalyses
         }),
       })
 
       if (!response.ok) throw new Error('Response failed')
-      
+
       // Remove status messages first
       setMessages(prev => prev.filter(msg => msg.type !== 'status'))
-      
+
       // Create streaming response message
       const responseId = (Date.now() + 1).toString()
       let streamingResponse = ""
@@ -316,9 +323,8 @@ export default function InterviewPage() {
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6))
-                
+
                 if (data.type === 'metadata') {
-                  // Create initial empty response message when metadata arrives
                   const initialResponseMessage: Message = {
                     id: responseId,
                     type: 'response',
@@ -326,20 +332,28 @@ export default function InterviewPage() {
                     timestamp: new Date()
                   }
                   setMessages(prev => [...prev, initialResponseMessage])
-                  
+
                 } else if (data.type === 'delta') {
                   streamingResponse += data.content
-                  
-                  // Update the existing response message
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === responseId 
+
+                  setMessages(prev => prev.map(msg =>
+                    msg.id === responseId
                       ? { ...msg, content: streamingResponse }
                       : msg
                   ))
-                  
+
+                } else if (data.type === 'clear') {
+                  // Clear previous content for corrected responses
+                  streamingResponse = ""
+                  setMessages(prev => prev.map(msg =>
+                    msg.id === responseId
+                      ? { ...msg, content: "" }
+                      : msg
+                  ))
+
                 } else if (data.type === 'done') {
-                  console.log("Streaming completed:", streamingResponse)
-                  
+                  console.log("Enhanced streaming completed:", streamingResponse)
+
                 } else if (data.type === 'error') {
                   throw new Error(data.message)
                 }
@@ -350,20 +364,17 @@ export default function InterviewPage() {
           }
         }
       }
-      
-      // Reset status to listening
+
       setCurrentStatus('listening')
 
     } catch (error) {
-      console.error("Error generating AI response:", error)
-      
-      // Remove status messages
+      console.error("Error generating enhanced AI response:", error)
+
       setMessages(prev => prev.filter(msg => msg.type !== 'status'))
-      
-      // Fallback response
-      const fallbackResponse = language === 'it' ? 
-        "Grazie per la domanda. Basandomi sulla mia esperienza e competenze, ritengo di poter contribuire significativamente a questa posizione e all'azienda." :
-        "Thank you for the question. Based on my experience and skills, I believe I can contribute significantly to this position and the company."
+
+      const fallbackResponse = language === 'it' ?
+        "Grazie per la domanda. Basandomi sulla mia esperienza e competenze estratte dai documenti, ritengo di poter contribuire significativamente a questa posizione." :
+        "Thank you for the question. Based on my experience and skills extracted from the documents, I believe I can contribute significantly to this position."
 
       const responseMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -371,10 +382,8 @@ export default function InterviewPage() {
         content: fallbackResponse,
         timestamp: new Date()
       }
-      
+
       setMessages(prev => [...prev, responseMessage])
-      
-      // Reset status to listening
       setCurrentStatus('listening')
     }
   }
@@ -401,7 +410,7 @@ export default function InterviewPage() {
       <main className="overflow-hidden">
         <div className="min-h-screen bg-gradient-to-br from-[#667eea] via-[#764ba2] to-[#667eea] dark:from-purple-900 dark:via-blue-900 dark:to-indigo-900 px-4 py-8">
           <div className="max-w-6xl mx-auto">
-            
+
             {/* Header with title and points */}
             <div className="text-center mb-6">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent mb-2">
@@ -420,14 +429,14 @@ export default function InterviewPage() {
 
             {/* Mobile Layout */}
             <div className="block lg:hidden space-y-4">
-              
+
               {/* Mobile Quick Controls Bar */}
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {/* Microphone Control */}
                 <div className="flex-shrink-0">
                   {!isLiveMode ? (
-                    <Button 
-                      size="lg" 
+                    <Button
+                      size="lg"
                       onClick={toggleLiveMode}
                       className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl whitespace-nowrap"
                       disabled={userPoints < 1 || isActivatingLive}
@@ -445,15 +454,14 @@ export default function InterviewPage() {
                       )}
                     </Button>
                   ) : (
-                    <Button 
-                      size="lg" 
+                    <Button
+                      size="lg"
                       onClick={toggleListening}
                       variant={isListening ? "destructive" : "default"}
-                      className={`px-6 py-3 rounded-xl whitespace-nowrap ${
-                        isListening 
-                          ? '' 
+                      className={`px-6 py-3 rounded-xl whitespace-nowrap ${isListening
+                          ? ''
                           : 'bg-green-600 hover:bg-green-700 text-white'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         {isListening ? (
@@ -471,7 +479,7 @@ export default function InterviewPage() {
                     </Button>
                   )}
                 </div>
-                
+
                 {/* Language Selector */}
                 <div className="flex-shrink-0 min-w-[120px]">
                   <Select value={language} onValueChange={setLanguage}>
@@ -508,7 +516,7 @@ export default function InterviewPage() {
                           Interview Context - Full View
                         </DialogTitle>
                       </DialogHeader>
-                      
+
                       <ScrollArea className="max-h-[70vh] pr-4">
                         <div className="space-y-6">
                           {/* Job Title */}
@@ -520,7 +528,7 @@ export default function InterviewPage() {
                               {jobData.jobTitle || "Posizione non specificata"}
                             </p>
                           </div>
-                          
+
                           {/* Job Description */}
                           <div>
                             <h4 className="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-2">
@@ -532,7 +540,7 @@ export default function InterviewPage() {
                               </p>
                             </div>
                           </div>
-                          
+
                           {/* Uploaded Files */}
                           {jobData.uploadedFiles && jobData.uploadedFiles.length > 0 && (
                             <div>
@@ -559,7 +567,7 @@ export default function InterviewPage() {
                               </div>
                             </div>
                           )}
-                          
+
                           {/* AI Analysis Summary */}
                           <div>
                             <h4 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">
@@ -586,7 +594,7 @@ export default function InterviewPage() {
               </div>
 
               {/* Mobile Chat Area - Fixed height, full scrollable */}
-              <Card className="bg-white dark:bg-gray-800/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30" style={{height: 'calc(100vh - 220px)'}}>
+              <Card className="bg-white dark:bg-gray-800/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30" style={{ height: 'calc(100vh - 220px)' }}>
                 <CardHeader className="flex-shrink-0 pb-3 pt-4 px-4">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg font-bold">Interview Chat</CardTitle>
@@ -606,8 +614,8 @@ export default function InterviewPage() {
                     </div>
                   </div>
                 </CardHeader>
-                
-                <CardContent className="px-4 pb-4" style={{height: 'calc(100vh - 320px)'}}>
+
+                <CardContent className="px-4 pb-4" style={{ height: 'calc(100vh - 320px)' }}>
                   <ScrollArea className="h-full w-full" onScrollCapture={handleScroll}>
                     <div className="space-y-4 pr-4">
                       {messages.map((message) => (
@@ -645,10 +653,10 @@ export default function InterviewPage() {
                           )}
                         </div>
                       ))}
-                      
+
                       {/* Invisible element to scroll to */}
                       <div ref={messagesEndRef} />
-                      
+
                       {messages.length === 0 && (
                         <div className="text-center text-gray-500 dark:text-gray-400 py-8">
                           <Brain className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -660,9 +668,9 @@ export default function InterviewPage() {
                   </ScrollArea>
                 </CardContent>
               </Card>
-              
+
               {/* New Session Button - Separate for Mobile */}
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => router.push("/")}
                 className="w-full bg-gray-600 hover:bg-gray-700 text-white border-none py-3 rounded-xl mt-4"
@@ -678,7 +686,7 @@ export default function InterviewPage() {
                   {/* Fullscreen Header with centered controls - Sticky */}
                   <div className="sticky top-0 z-50 flex items-center justify-between p-4 border-b bg-background/90 backdrop-blur-sm">
                     <h2 className="text-xl font-bold">Interview Chat - Full Screen</h2>
-                    
+
                     {/* Center controls: Language and Points */}
                     <div className="flex items-center gap-4">
                       {/* Language Selector */}
@@ -697,21 +705,21 @@ export default function InterviewPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      
+
                       {/* Points Display */}
                       <Badge variant="secondary" className="gap-1 bg-gray-800 dark:bg-gray-700 text-white px-3 py-1">
                         <Coins className="w-4 h-4" />
                         {userPoints} punti
                       </Badge>
                     </div>
-                    
+
                     {/* Right side: Status and Close */}
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${currentStatus === 'listening' ? 'bg-green-500 animate-pulse' : currentStatus === 'idle' ? 'bg-gray-400' : 'bg-yellow-500'}`}></div>
                         <span className="text-sm font-medium">{getStatusMessage()}</span>
                       </div>
-                      
+
                       {/* Close Button with red hover */}
                       <Button
                         variant="ghost"
@@ -723,7 +731,7 @@ export default function InterviewPage() {
                       </Button>
                     </div>
                   </div>
-                  
+
                   {/* Fullscreen Chat Content - With proper height calculation */}
                   <div className="flex-1 overflow-hidden">
                     <ScrollArea className="h-full w-full p-4" onScrollCapture={handleScroll}>
@@ -763,7 +771,7 @@ export default function InterviewPage() {
                             )}
                           </div>
                         ))}
-                        
+
                         {messages.length === 0 && (
                           <div className="text-center text-gray-500 dark:text-gray-400 py-12">
                             <Brain className="w-16 h-16 mx-auto mb-4 opacity-50" />
@@ -771,20 +779,20 @@ export default function InterviewPage() {
                             <p className="text-base">Use the controls below to start listening for questions</p>
                           </div>
                         )}
-                        
+
                         {/* Invisible element to scroll to */}
                         <div ref={messagesEndRef} />
                       </div>
                     </ScrollArea>
                   </div>
-                  
+
                   {/* Fullscreen Controls Bar - Only Microphone - Sticky */}
                   <div className="sticky bottom-0 z-50 border-t bg-gray-50/90 dark:bg-gray-800/90 backdrop-blur-sm p-4 rounded-b-xl">
                     <div className="flex items-center justify-center">
                       {/* Microphone Control - Centered */}
                       {!isLiveMode ? (
-                        <Button 
-                          size="lg" 
+                        <Button
+                          size="lg"
                           onClick={toggleLiveMode}
                           className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl text-lg font-medium"
                           disabled={userPoints < 1 || isActivatingLive}
@@ -809,16 +817,15 @@ export default function InterviewPage() {
                               <span className="font-medium">Microfono {isListening ? "Attivo" : "Sospeso"}</span>
                             </div>
                           </div>
-                          
-                          <Button 
-                            size="lg" 
+
+                          <Button
+                            size="lg"
                             onClick={toggleListening}
                             variant={isListening ? "destructive" : "default"}
-                            className={`px-8 py-4 rounded-xl text-lg font-medium ${
-                              isListening 
-                                ? '' 
+                            className={`px-8 py-4 rounded-xl text-lg font-medium ${isListening
+                                ? ''
                                 : 'bg-green-600 hover:bg-green-700 text-white'
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-3">
                               {isListening ? (
@@ -837,7 +844,7 @@ export default function InterviewPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     {userPoints < 1 && (
                       <p className="text-sm text-red-600 text-center mt-3 font-medium">
                         Punti insufficienti per continuare!
@@ -850,10 +857,10 @@ export default function InterviewPage() {
 
             {/* Desktop Layout */}
             <div className="hidden lg:grid lg:grid-cols-3 gap-6">
-              
+
               {/* Main Chat Area - Fixed height with proper scrolling */}
               <div className="lg:col-span-2">
-                <Card className="bg-white dark:bg-gray-800/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30" style={{height: 'calc(100vh - 180px)'}}>
+                <Card className="bg-white dark:bg-gray-800/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30" style={{ height: 'calc(100vh - 180px)' }}>
                   <CardHeader className="flex-shrink-0 pb-3 pt-4 px-6">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-xl font-bold">Interview Chat</CardTitle>
@@ -873,53 +880,53 @@ export default function InterviewPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  
-                  <CardContent className="px-6 pb-6" style={{height: 'calc(100vh - 280px)'}}>
+
+                  <CardContent className="px-6 pb-6" style={{ height: 'calc(100vh - 280px)' }}>
                     <ScrollArea className="h-full w-full" onScrollCapture={handleScroll}>
                       <div className="space-y-4 pr-4">
-                          {messages.map((message) => (
-                            <div key={message.id}>
-                              {message.type === 'question' ? (
-                                <div className="flex justify-start mb-4">
-                                  <div className="max-w-[80%] bg-blue-100 dark:bg-blue-900/40 rounded-3xl rounded-bl-lg px-6 py-4 shadow-sm">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <Mic className="w-4 h-4 text-blue-600" />
-                                      <span className="font-semibold text-blue-800 dark:text-blue-200">Interviewer:</span>
-                                    </div>
-                                    <p className="text-gray-800 dark:text-gray-100 leading-relaxed">{message.content}</p>
+                        {messages.map((message) => (
+                          <div key={message.id}>
+                            {message.type === 'question' ? (
+                              <div className="flex justify-start mb-4">
+                                <div className="max-w-[80%] bg-blue-100 dark:bg-blue-900/40 rounded-3xl rounded-bl-lg px-6 py-4 shadow-sm">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Mic className="w-4 h-4 text-blue-600" />
+                                    <span className="font-semibold text-blue-800 dark:text-blue-200">Interviewer:</span>
+                                  </div>
+                                  <p className="text-gray-800 dark:text-gray-100 leading-relaxed">{message.content}</p>
+                                </div>
+                              </div>
+                            ) : message.type === 'status' ? (
+                              <div className="flex justify-center mb-4">
+                                <div className="bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-full px-4 py-2">
+                                  <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span className="text-sm font-medium">{message.content}</span>
                                   </div>
                                 </div>
-                              ) : message.type === 'status' ? (
-                                <div className="flex justify-center mb-4">
-                                  <div className="bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-full px-4 py-2">
-                                    <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                      <span className="text-sm font-medium">{message.content}</span>
-                                    </div>
+                              </div>
+                            ) : (
+                              <div className="flex justify-end mb-4">
+                                <div className="max-w-[80%] bg-green-100 dark:bg-green-900/40 rounded-3xl rounded-br-lg px-6 py-4 shadow-sm">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Brain className="w-4 h-4 text-green-600" />
+                                    <span className="font-semibold text-green-800 dark:text-green-200">Your AI Response:</span>
+                                    <Badge className="bg-green-600 text-white text-xs">AI</Badge>
                                   </div>
+                                  <p className="text-gray-800 dark:text-gray-100 leading-relaxed">{message.content}</p>
                                 </div>
-                              ) : (
-                                <div className="flex justify-end mb-4">
-                                  <div className="max-w-[80%] bg-green-100 dark:bg-green-900/40 rounded-3xl rounded-br-lg px-6 py-4 shadow-sm">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <Brain className="w-4 h-4 text-green-600" />
-                                      <span className="font-semibold text-green-800 dark:text-green-200">Your AI Response:</span>
-                                      <Badge className="bg-green-600 text-white text-xs">AI</Badge>
-                                    </div>
-                                    <p className="text-gray-800 dark:text-gray-100 leading-relaxed">{message.content}</p>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                          
-                          {messages.length === 0 && (
-                            <div className="text-center text-gray-500 dark:text-gray-400 py-12">
-                              <Brain className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                              <p className="text-lg font-medium mb-2">Ready for Interview</p>
-                              <p className="text-sm">Click "Inizia Ascolto" to start listening for questions</p>
-                            </div>
-                          )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        {messages.length === 0 && (
+                          <div className="text-center text-gray-500 dark:text-gray-400 py-12">
+                            <Brain className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <p className="text-lg font-medium mb-2">Ready for Interview</p>
+                            <p className="text-sm">Click "Inizia Ascolto" to start listening for questions</p>
+                          </div>
+                        )}
                       </div>
                     </ScrollArea>
                   </CardContent>
@@ -928,15 +935,15 @@ export default function InterviewPage() {
 
               {/* Controls Sidebar */}
               <div className="space-y-6">
-                
+
                 {/* Microphone Control */}
                 <Card className="bg-white dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/30">
                   <CardContent className="p-6 text-center">
                     <h3 className="font-semibold mb-4">Controllo Microfono</h3>
-                    
+
                     {!isLiveMode ? (
-                      <Button 
-                        size="lg" 
+                      <Button
+                        size="lg"
                         onClick={toggleLiveMode}
                         className="w-full bg-green-600 hover:bg-green-700 text-white text-lg py-4 rounded-xl"
                         disabled={userPoints < 1 || isActivatingLive}
@@ -961,16 +968,15 @@ export default function InterviewPage() {
                             <span className="text-sm font-medium">Microfono {isListening ? "Attivo" : "Sospeso"}</span>
                           </div>
                         </div>
-                        
-                        <Button 
-                          size="lg" 
+
+                        <Button
+                          size="lg"
                           onClick={toggleListening}
                           variant={isListening ? "destructive" : "default"}
-                          className={`w-full py-4 rounded-xl ${
-                            isListening 
-                              ? '' 
+                          className={`w-full py-4 rounded-xl ${isListening
+                              ? ''
                               : 'bg-green-600 hover:bg-green-700 text-white'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-2">
                             {isListening ? (
@@ -988,7 +994,7 @@ export default function InterviewPage() {
                         </Button>
                       </div>
                     )}
-                    
+
                     {userPoints < 1 && (
                       <p className="text-xs text-red-600 mt-2">
                         Punti insufficienti!
@@ -1004,7 +1010,7 @@ export default function InterviewPage() {
                       <Languages className="w-4 h-4" />
                       Lingua
                     </h3>
-                    
+
                     <Select value={language} onValueChange={setLanguage}>
                       <SelectTrigger className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl">
                         <SelectValue />
@@ -1046,7 +1052,7 @@ export default function InterviewPage() {
                                 Interview Context - Full View
                               </DialogTitle>
                             </DialogHeader>
-                            
+
                             <ScrollArea className="max-h-[60vh] pr-4">
                               <div className="space-y-6">
                                 {/* Job Title */}
@@ -1058,7 +1064,7 @@ export default function InterviewPage() {
                                     {jobData.jobTitle || "Posizione non specificata"}
                                   </p>
                                 </div>
-                                
+
                                 {/* Job Description */}
                                 <div>
                                   <h4 className="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-2">
@@ -1070,7 +1076,7 @@ export default function InterviewPage() {
                                     </p>
                                   </div>
                                 </div>
-                                
+
                                 {/* Uploaded Files */}
                                 {jobData.uploadedFiles && jobData.uploadedFiles.length > 0 && (
                                   <div>
@@ -1097,7 +1103,7 @@ export default function InterviewPage() {
                                     </div>
                                   </div>
                                 )}
-                                
+
                                 {/* AI Analysis Summary */}
                                 <div>
                                   <h4 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">
@@ -1121,7 +1127,7 @@ export default function InterviewPage() {
                           </DialogContent>
                         </Dialog>
                       </div>
-                      
+
                       <ScrollArea className="max-h-[200px] overflow-y-auto">
                         <div className="text-sm space-y-2 pr-2">
                           <p className="font-medium text-blue-600 dark:text-blue-400">
@@ -1130,7 +1136,7 @@ export default function InterviewPage() {
                           <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                             {jobData.jobDescription || "No description"}
                           </p>
-                          
+
                           {jobData.uploadedFiles && jobData.uploadedFiles.length > 0 && (
                             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 mt-3">
                               <p className="text-xs text-blue-700 dark:text-blue-300">
@@ -1145,7 +1151,7 @@ export default function InterviewPage() {
                 )}
 
                 {/* New Session Button */}
-                <Button 
+                <Button
                   variant="outline"
                   onClick={() => router.push("/")}
                   className="w-full bg-gray-600 hover:bg-gray-700 text-white border-none py-3 rounded-xl"
