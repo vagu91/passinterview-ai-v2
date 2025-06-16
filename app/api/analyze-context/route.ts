@@ -1,3 +1,5 @@
+// app/api/analyze-context/route.ts - COMPLETE FILE WITH TYPESCRIPT FIXES
+
 import { generateText } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { NextRequest, NextResponse } from 'next/server'
@@ -6,9 +8,9 @@ export async function POST(req: NextRequest) {
   try {
     const { jobTitle, contextDescription } = await req.json()
 
-    console.log("Analyzing context:", { 
-      jobTitle: jobTitle?.length, 
-      contextLength: contextDescription?.length 
+    console.log("Analyzing context:", {
+      jobTitle: jobTitle?.length,
+      contextLength: contextDescription?.length
     })
 
     if (!process.env.OPENAI_API_KEY) {
@@ -108,15 +110,28 @@ Respond ONLY with JSON.`
       maxTokens: 400,
     })
 
-    // Parse JSON response
-    let result
+    // Parse JSON response with proper typing
+    interface AnalysisResult {
+      confidence: number;
+      suggestions: string;
+      detectedLanguage: string;
+      valid: boolean;
+      analysis: {
+        roleClarity: number;
+        experienceDetail: number;
+        skillsSpecificity: number;
+        contextCompleteness: number;
+      };
+    }
+
+    let result: AnalysisResult
     try {
-      result = JSON.parse(analysis)
+      result = JSON.parse(analysis) as AnalysisResult
     } catch (e) {
       console.warn('Failed to parse AI response, using fallback')
       result = {
         confidence: 85,
-        suggestions: isItalian ? 
+        suggestions: isItalian ?
           "Aggiungi più dettagli specifici sui progetti e tecnologie utilizzate" :
           "Add more specific details about projects and technologies used",
         detectedLanguage: langCode || 'en-US',
@@ -147,7 +162,7 @@ Respond ONLY with JSON.`
 
   } catch (error) {
     console.error('Error analyzing context:', error)
-    
+
     return NextResponse.json({
       success: false,
       error: 'Failed to analyze context',

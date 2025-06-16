@@ -1,4 +1,4 @@
-// app/api/interview-response/route.ts - FINAL VERSION WITH ENGLISH BASE
+// app/api/interview-response/route.ts - SINGLE RESPONSE FIXED VERSION
 
 import { streamText } from 'ai'
 import { openai } from '@ai-sdk/openai'
@@ -49,61 +49,16 @@ export async function POST(req: NextRequest) {
       context += "\n"
     }
 
-    // Create specialized prompt based on question type - ALWAYS IN ENGLISH
-    const responsePrompt = createPromptByType(originalQuestion, context, jobTitle, questionType)
+    // FIXED: Create prompt that generates DIRECTLY in target language
+    const responsePrompt = createPromptByType(originalQuestion, context, jobTitle, questionType, language)
 
-    // Generate response in English first
+    // FIXED: Single AI generation in target language
     const result = await streamText({
       model: openai('gpt-3.5-turbo'),
       prompt: responsePrompt,
       temperature: 0.7,
       maxTokens: 300,
     })
-
-    // Smart correction for voice transcription errors
-    const smartCorrectionPromise = (async () => {
-      try {
-        const correctionPrompt = `Auto-correct voice transcription errors in this question: "${originalQuestion}"
-
-Replace words that seem like voice recognition errors with correct technical terms for a ${jobTitle}:
-- angola → Angular
-- react → React  
-- c sharp → C#
-- java script → JavaScript
-- python → Python
-- node → Node
-- docker → Docker
-- kubernetes → Kubernetes
-- git → Git
-- github → GitHub
-- api → API
-- sequel → SQL
-- no sequel → NoSQL
-- aws → AWS
-- azure → Azure
-
-If no corrections needed, respond "NO_CORRECTION".
-If you correct something, respond ONLY with the corrected question.`
-
-        const correctionResult = await streamText({
-          model: openai('gpt-3.5-turbo'),
-          prompt: correctionPrompt,
-          temperature: 0.1,
-          maxTokens: 100,
-        })
-
-        let correction = ''
-        for await (const delta of correctionResult.textStream) {
-          correction += delta
-        }
-
-        const trimmedCorrection = correction.trim()
-        return (trimmedCorrection === "NO_CORRECTION") ? null : trimmedCorrection
-      } catch (error) {
-        console.log("Smart correction failed:", error)
-        return null
-      }
-    })()
 
     // Create streaming response
     const encoder = new TextEncoder()
@@ -117,12 +72,8 @@ If you correct something, respond ONLY with the corrected question.`
           }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`))
 
-          // Collect the English response
-          let englishResponse = ''
-
-          // Stream the AI response
+          // FIXED: Stream the SINGLE AI response directly
           for await (const delta of result.textStream) {
-            englishResponse += delta
             const chunk = {
               type: 'delta',
               content: delta
@@ -130,80 +81,7 @@ If you correct something, respond ONLY with the corrected question.`
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
           }
 
-          // Check smart correction
-          const correctedQuestion = await smartCorrectionPromise
-
-          if (correctedQuestion && correctedQuestion !== originalQuestion) {
-            console.log("Question corrected:", originalQuestion, "→", correctedQuestion)
-
-            // Generate better response with corrected question - replace the original
-            const betterPrompt = createPromptByType(correctedQuestion, context, jobTitle, 'general')
-
-            const betterResult = await streamText({
-              model: openai('gpt-3.5-turbo'),
-              prompt: betterPrompt,
-              temperature: 0.7,
-              maxTokens: 300,
-            })
-
-            // Clear previous response and show corrected version
-            const clearSignal = {
-              type: 'clear'
-            }
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(clearSignal)}\n\n`))
-
-            // Collect and stream the better response
-            englishResponse = ''
-            for await (const delta of betterResult.textStream) {
-              englishResponse += delta
-              const chunk = {
-                type: 'delta',
-                content: delta
-              }
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
-            }
-          }
-
-          // Translate if needed
-          if (language !== 'en' && englishResponse.length > 50) {
-            console.log("Translating response to:", language)
-
-            const translationPrompt = `Translate this interview response from English to ${getLanguageName(language)}. 
-
-CRITICAL INSTRUCTIONS:
-- Keep the same conversational tone and confidence level
-- Maintain all specific details (company names, numbers, dates, project names, technologies)
-- Preserve technical terms appropriately for the target language
-- Keep the response length similar to the original
-- Sound natural in the target language
-
-Original English response:
-"${englishResponse}"
-
-Respond ONLY with the translation, no additional text:`
-
-            const translationResult = await streamText({
-              model: openai('gpt-3.5-turbo'),
-              prompt: translationPrompt,
-              temperature: 0.2,
-              maxTokens: 250,
-            })
-
-            // Clear previous content and show translation
-            const clearAndReplace = {
-              type: 'clear'
-            }
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(clearAndReplace)}\n\n`))
-
-            // Stream the translation
-            for await (const delta of translationResult.textStream) {
-              const chunk = {
-                type: 'delta',
-                content: delta
-              }
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
-            }
-          }
+          console.log("Single response completed in language:", language)
 
           // Send completion signal
           const completion = { type: 'done' }
@@ -256,14 +134,19 @@ function analyzeQuestionType(question: string): 'technical' | 'experience' | 'ge
   return 'general'
 }
 
-// Function to create unified intelligent prompt - ALWAYS IN ENGLISH
-function createPromptByType(question: string, context: string, jobTitle: string, questionType: string): string {
+// FIXED: Function to create prompt that generates DIRECTLY in target language
+function createPromptByType(question: string, context: string, jobTitle: string, questionType: string, language: string): string {
+  const languageInstruction = language === 'en'
+    ? 'Respond in English.'
+    : `Respond in ${getLanguageName(language)}. Use natural, fluent ${getLanguageName(language)} throughout your response.`
+
   return `You are a professional candidate being interviewed for the position of ${jobTitle}.
 
 ${context}
 
 CRITICAL INSTRUCTIONS:
 - Respond DIRECTLY as the candidate - no quotes, no meta-commentary
+- ${languageInstruction}
 - Analyze the question type and respond appropriately:
 
 FOR TECHNICAL QUESTIONS (asking about specific tools, technologies, frameworks, concepts):
@@ -292,7 +175,7 @@ GENERAL APPROACH:
 - Be natural and conversational like a real person
 - Provide substantive, detailed responses
 - Show both knowledge and practical application where appropriate
-- All responses must be in English (will be translated later if needed)
+- ${languageInstruction}
 
 QUESTION: ${question}
 
@@ -311,14 +194,18 @@ async function generateFallbackResponse(req: NextRequest) {
       throw new Error('No API key for fallback')
     }
 
-    // Generate AI fallback in English
+    const languageInstruction = fallbackLanguage === 'en'
+      ? 'Respond in English.'
+      : `Respond in ${getLanguageName(fallbackLanguage)}.`
+
+    // FIXED: Generate fallback directly in target language
     const fallbackPrompt = `Generate a professional interview response for a candidate applying for ${jobTitle}. 
     
 Question: "${fallbackQuestion}"
     
 Create a confident, professional response that demonstrates competency and interest in the role.
 Keep it concise (2-3 sentences) and professional.
-Respond in English only.`
+${languageInstruction}`
 
     const fallbackResult = await streamText({
       model: openai('gpt-3.5-turbo'),
@@ -330,29 +217,6 @@ Respond in English only.`
     let fallbackResponse = ''
     for await (const delta of fallbackResult.textStream) {
       fallbackResponse += delta
-    }
-
-    // Translate if needed
-    if (fallbackLanguage !== 'en' && fallbackResponse.length > 20) {
-      const translationPrompt = `Translate this professional interview response to ${getLanguageName(fallbackLanguage)}:
-
-"${fallbackResponse}"
-
-Respond only with the translation:`
-
-      const translationResult = await streamText({
-        model: openai('gpt-3.5-turbo'),
-        prompt: translationPrompt,
-        temperature: 0.2,
-        maxTokens: 100,
-      })
-
-      let translatedResponse = ''
-      for await (const delta of translationResult.textStream) {
-        translatedResponse += delta
-      }
-
-      fallbackResponse = translatedResponse.trim()
     }
 
     // Return fallback streaming response
@@ -402,13 +266,9 @@ Respond only with the translation:`
   } catch (fallbackError) {
     console.error('Fallback generation failed:', fallbackError)
 
-    // Minimal hardcoded fallback as last resort
+    // FIXED: Last resort hardcoded response in English only
     const requestBody = await req.json().catch(() => ({}))
-    const finalLanguage = requestBody.language || 'en'
-
-    const minimalResponse = finalLanguage === 'en' ?
-      "Thank you for the question. Based on my experience and skills, I believe I can contribute significantly to this position and the company." :
-      "Grazie per la domanda. Basandomi sulla mia esperienza e competenze, ritengo di poter contribuire significativamente a questa posizione e all'azienda."
+    const minimalResponse = "Thank you for the question. Based on my experience and skills, I believe I can contribute significantly to this position and the company."
 
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
