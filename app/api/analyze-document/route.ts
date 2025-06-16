@@ -1,10 +1,10 @@
-// app/api/analyze-document/route.ts - ENHANCED VERSION WITH PROPER DOCX SUPPORT
+// app/api/analyze-document/route.ts - FIXED VERSION WITH WORKING PDF SUPPORT
 
 import { generateText } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Note: You'll need to install mammoth for DOCX support
+// Note: Install required dependencies
 // npm install mammoth @types/mammoth
 
 export async function POST(req: NextRequest) {
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const files = formData.getAll('files') as File[]
     const targetLanguage = formData.get('language') as string || 'en'
 
-    console.log("Analyzing documents with enhanced DOCX extraction:", {
+    console.log("Analyzing documents with enhanced extraction:", {
       fileNames: files.map(f => f.name),
       totalFiles: files.length,
       targetLanguage
@@ -40,24 +40,26 @@ export async function POST(req: NextRequest) {
       files.map(async (file, index) => {
         console.log(`Processing file ${index + 1}/${files.length}: ${file.name}`)
 
+        // Determine document type
+        const fileName = file.name.toLowerCase()
+        let docType = 'document'
+
+        if (fileName.includes('cv') || fileName.includes('resume') || fileName.includes('curriculum')) {
+          docType = 'cv'
+        } else if (fileName.includes('cover') || fileName.includes('letter') || fileName.includes('motivation')) {
+          docType = 'cover_letter'
+        } else if (fileName.includes('job') || fileName.includes('description') || fileName.includes('position')) {
+          docType = 'job_description'
+        }
+
         try {
-          // Determine document type
-          const fileName = file.name.toLowerCase()
-          let documentType = 'document'
-
-          if (fileName.includes('cv') || fileName.includes('resume') || fileName.includes('curriculum')) {
-            documentType = 'cv'
-          } else if (fileName.includes('cover') || fileName.includes('letter') || fileName.includes('motivation')) {
-            documentType = 'cover_letter'
-          } else if (fileName.includes('job') || fileName.includes('description') || fileName.includes('position')) {
-            documentType = 'job_description'
-          }
-
-          // ENHANCED text extraction with proper DOCX support
+          // Text extraction with proper error handling
           let fileText: string | null = null
           let charactersExtracted = 0
           let extractionMethod = 'unknown'
+          let extractionError: string | null = null
 
+          // TEXT FILES
           if (file.type === 'text/plain' || fileName.endsWith('.txt')) {
             try {
               fileText = await file.text()
@@ -66,122 +68,162 @@ export async function POST(req: NextRequest) {
               console.log(`Text file extraction: ${charactersExtracted} characters`)
             } catch (textError) {
               console.warn(`Failed to extract text from ${file.name}:`, textError)
+              extractionError = `Text extraction failed: ${textError instanceof Error ? textError.message : 'Unknown error'}`
               fileText = null
               charactersExtracted = 0
               extractionMethod = 'failed'
             }
-          } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+          }
+
+          // PDF FILES - Simple approach using FileReader-like logic
+          else if (file.type === 'application/pdf' || fileName.endsWith('.pdf')) {
             try {
-              // Enhanced DOCX extraction using mammoth
+              const arrayBuffer = await file.arrayBuffer()
+              console.log(`Processing PDF file: ${file.name}, size: ${arrayBuffer.byteLength} bytes`)
+
+              // Simple binary text extraction for PDFs
+              const extractedText = await extractTextFromBinary(arrayBuffer)
+              if (extractedText && extractedText.length > 100) {
+                fileText = extractedText
+                charactersExtracted = extractedText.length // Use extractedText.length, not fileText.length
+                extractionMethod = 'pdf_binary'
+                console.log(`PDF binary extraction: ${charactersExtracted} characters extracted`)
+                console.log(`First 200 characters: ${extractedText.substring(0, 200)}...`)
+              } else {
+                extractionError = 'PDF text extraction yielded insufficient readable content'
+                fileText = null
+                charactersExtracted = 0
+                extractionMethod = 'failed'
+              }
+
+            } catch (pdfProcessError) {
+              console.error(`PDF processing error for ${file.name}:`, pdfProcessError)
+              extractionError = `PDF processing error: ${pdfProcessError instanceof Error ? pdfProcessError.message : 'Unknown error'}`
+              fileText = null
+              charactersExtracted = 0
+              extractionMethod = 'failed'
+            }
+          }
+
+          // DOCX FILES
+          else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+            try {
               const arrayBuffer = await file.arrayBuffer()
               console.log(`Processing DOCX file: ${file.name}, size: ${arrayBuffer.byteLength} bytes`)
 
               try {
-                // Debug: Test mammoth import first
-                console.log('Attempting to import mammoth...')
                 const mammoth = (await import('mammoth')).default
-                console.log('Mammoth imported successfully:', typeof mammoth)
-
-                // Convert ArrayBuffer to Buffer for mammoth
                 const buffer = Buffer.from(arrayBuffer)
-                console.log('Converted to Buffer, size:', buffer.length)
-
-                console.log('Calling mammoth.extractRawText...')
                 const result = await mammoth.extractRawText({ buffer })
-                console.log('Mammoth result:', {
-                  textLength: result.value?.length || 0,
-                  hasMessages: result.messages?.length || 0,
-                  firstChars: result.value?.substring(0, 200) || 'No text'
-                })
 
                 if (result.value && result.value.length > 50) {
                   fileText = result.value
                   charactersExtracted = fileText.length
                   extractionMethod = 'mammoth_docx'
                   console.log(`Mammoth DOCX extraction successful: ${charactersExtracted} characters extracted`)
-
-                  if (result.messages && result.messages.length > 0) {
-                    console.log('Mammoth extraction messages:', result.messages.map(m => m.message))
-                  }
                 } else {
                   throw new Error(`Mammoth extraction yielded insufficient text: ${result.value?.length || 0} characters`)
                 }
 
               } catch (mammothError) {
                 console.error(`Mammoth extraction failed for ${file.name}:`, mammothError)
+                extractionError = `DOCX extraction failed: ${mammothError instanceof Error ? mammothError.message : 'Unknown error'}`
 
-                // Fallback to XML extraction if mammoth fails
-                const extractedText = await extractTextFromDocx(arrayBuffer)
-
-                if (extractedText && extractedText.length > 50) {
-                  fileText = extractedText
-                  charactersExtracted = fileText.length
-                  extractionMethod = 'docx_xml_fallback'
-                  console.log(`DOCX XML fallback extraction: ${charactersExtracted} characters extracted`)
-                } else {
-                  throw new Error('All DOCX extraction methods failed')
+                // Try XML fallback
+                try {
+                  const extractedText = await extractTextFromDocx(arrayBuffer)
+                  if (extractedText && extractedText.length > 50) {
+                    fileText = extractedText
+                    charactersExtracted = fileText.length
+                    extractionMethod = 'docx_xml_fallback'
+                    console.log(`DOCX XML fallback extraction: ${charactersExtracted} characters extracted`)
+                  } else {
+                    throw new Error('XML fallback failed')
+                  }
+                } catch (xmlError) {
+                  console.warn(`All DOCX extraction methods failed for ${file.name}:`, xmlError)
+                  fileText = null
+                  charactersExtracted = 0
+                  extractionMethod = 'failed'
+                  extractionError = `All DOCX extraction methods failed: ${xmlError instanceof Error ? xmlError.message : 'Unknown error'}`
                 }
               }
 
-            } catch (docxError) {
-              console.warn(`All DOCX extraction failed for ${file.name}:`, docxError)
-
-              // Fallback: try to extract what we can
-              try {
-                const arrayBuffer = await file.arrayBuffer()
-                const uint8Array = new Uint8Array(arrayBuffer)
-
-                // Simple text search in binary data as last resort
-                const decoder = new TextDecoder('utf-8', { fatal: false })
-                const rawText = decoder.decode(uint8Array)
-
-                // Extract readable parts (basic heuristic)
-                const readableText = rawText
-                  .split('')
-                  .filter(char => {
-                    const code = char.charCodeAt(0)
-                    return (code >= 32 && code <= 126) || code === 10 || code === 13 || code === 9
-                  })
-                  .join('')
-                  .replace(/\s+/g, ' ')
-                  .trim()
-
-                if (readableText.length > 50) {
-                  fileText = readableText
-                  charactersExtracted = readableText.length
-                  extractionMethod = 'binary_fallback'
-                  console.log(`Binary fallback extraction: ${charactersExtracted} characters`)
-                } else {
-                  throw new Error('No readable text found in binary data')
-                }
-
-              } catch (fallbackError) {
-                console.warn(`Binary fallback also failed for ${file.name}:`, fallbackError)
-
-                // Final fallback - provide structure-based analysis
-                fileText = `DOCX File: ${file.name}
-Size: ${(file.size / 1024).toFixed(1)} KB
-Type: ${documentType}
-Status: Unable to extract text content
-Note: This appears to be a ${documentType} document based on filename analysis`
-
-                charactersExtracted = fileText.length
-                extractionMethod = 'structure_only'
-              }
+            } catch (docxProcessError) {
+              console.error(`DOCX processing error for ${file.name}:`, docxProcessError)
+              extractionError = `DOCX processing error: ${docxProcessError instanceof Error ? docxProcessError.message : 'Unknown error'}`
+              fileText = null
+              charactersExtracted = 0
+              extractionMethod = 'failed'
             }
-          } else {
-            console.log(`Unsupported file type for text extraction: ${file.name}`)
+          }
+
+          // UNSUPPORTED FILE TYPES
+          else {
+            console.log(`Unsupported file type for text extraction: ${file.name} (${file.type})`)
+            extractionError = `Formato file non supportato: ${file.type || 'sconosciuto'}. Formati supportati: PDF, DOCX, TXT`
             charactersExtracted = 0
             fileText = null
             extractionMethod = 'unsupported'
           }
 
-          // Enhanced AI analysis prompt
+          // If extraction completely failed, return early with clear error
+          if (extractionMethod === 'failed' || extractionMethod === 'unsupported') {
+            console.error(`Text extraction failed for ${file.name}: ${extractionError}`)
+
+            return {
+              documentType: docType,
+              extractionQuality: extractionMethod,
+              summary: `ERRORE: Impossibile estrarre il testo da ${file.name}. ${extractionError}`,
+              keyInsights: [
+                `❌ Estrazione del testo fallita per ${file.name}`,
+                `📄 Tipo file: ${file.type || 'sconosciuto'} (${(file.size / 1024).toFixed(1)} KB)`,
+                `🔧 Motivo: ${extractionError}`,
+                extractionMethod === 'unsupported'
+                  ? "💡 Soluzione: Carica un file PDF, DOCX o TXT supportato"
+                  : "💡 Soluzione: Verifica che il file non sia corrotto e riprova"
+              ],
+              extractedSkills: [],
+              experienceDetails: {
+                totalYears: "Analisi non disponibile",
+                industries: [],
+                roles: [],
+                companies: [],
+                workHistory: []
+              },
+              keyAchievements: [],
+              education: {
+                degrees: [],
+                institutions: [],
+                certifications: []
+              },
+              contactInfo: {
+                email: "non estratto",
+                phone: "non estratto",
+                location: "non estratto"
+              },
+              documentQuality: {
+                textExtractionSuccess: false,
+                analyzableContent: false,
+                recommendedAction: extractionMethod === 'unsupported'
+                  ? "Carica un file in formato supportato (PDF, DOCX, TXT)"
+                  : "Verifica l'integrità del file e riprova"
+              },
+              charactersExtracted: 0,
+              extractionMethod: extractionMethod,
+              extractionError: extractionError,
+              error: true
+            }
+          }
+
+          // Continue with AI analysis only if we have extracted text
+          console.log(`Sending content to AI for analysis: ${file.name} (${charactersExtracted} chars)`)
+
           const analysisPrompt = `You are an expert document analyzer. Analyze this document thoroughly.
 
 DOCUMENT INFORMATION:
 - Filename: ${file.name}
-- Type: ${documentType}
+- Type: ${docType}
 - Size: ${(file.size / 1024).toFixed(1)} KB
 - Extraction Method: ${extractionMethod}
 - Characters Extracted: ${charactersExtracted}
@@ -189,47 +231,52 @@ DOCUMENT INFORMATION:
 DOCUMENT CONTENT:
 ${fileText || 'NO READABLE CONTENT AVAILABLE'}
 
-ANALYSIS INSTRUCTIONS:
-${fileText && charactersExtracted > 100 ? `
-The extracted text is available and appears readable. Please provide a comprehensive analysis based on the actual content:
-- Extract all technical skills, programming languages, frameworks, tools mentioned
-- Identify company names, job titles, employment periods, and responsibilities
-- Find education details, degrees, certifications, and institutions
-- Identify key achievements, projects, and quantifiable results
-- Assess experience level based on career progression and complexity of roles
-` : `
-The text extraction was limited or failed. Based on the filename "${file.name}" and document type "${documentType}":
-- This appears to be a professional CV/Resume document
-- Provide a realistic analysis of what would typically be found in such a document
-- Clearly indicate that the analysis is based on document characteristics rather than content
-- Focus on typical professional elements for this type of document
-`}
+Please provide a comprehensive analysis based on the actual content. Extract:
+- All technical skills, programming languages, frameworks, tools mentioned
+- Company names, job titles, employment periods, and responsibilities
+- Education details, degrees, certifications, and institutions
+- Key achievements, projects, and quantifiable results
+- Contact information (email, phone, location)
+- Assessment of experience level based on career progression
 
-OUTPUT FORMAT:
-Respond with this EXACT JSON format (NO MARKDOWN, NO CODE BLOCKS):
+IMPORTANT: For work experience, organize jobs in REVERSE CHRONOLOGICAL ORDER (most recent first).
+Each job should include: company name, role title, start date, end date (or "Present"), and key responsibilities.
+
+OUTPUT FORMAT - Respond with this EXACT JSON format (NO MARKDOWN, NO CODE BLOCKS):
 {
-  "documentType": "${documentType}",
+  "documentType": "${docType}",
   "extractionQuality": "${extractionMethod}",
-  "summary": "Detailed summary of the analysis - indicate if based on actual content or document structure inference",
+  "summary": "Detailed summary of the professional profile based on actual content",
   "keyInsights": [
-    "Key insight about content quality and extraction success",
-    "Information about what was successfully analyzed",
-    "Assessment of professional level and document quality"
+    "Key insight about the candidate's profile",
+    "Notable professional experiences or achievements",
+    "Assessment of overall experience level and expertise"
   ],
   "extractedSkills": [
-    "List of technical skills found or typically expected in this type of document"
+    "List of technical skills, programming languages, and tools found"
   ],
   "experienceDetails": {
-    "totalYears": "Specific experience level found or reasonable estimate",
-    "industries": ["Industries identified or typical for this role type"],
-    "roles": ["Specific job titles found or typical roles"],
-    "companies": ["Company names found or indicate if inferred"]
+    "totalYears": "Calculated years of experience",
+    "industries": ["Industries identified"],
+    "roles": ["Specific job titles found"],
+    "companies": ["Company names found"],
+    "workHistory": [
+      {
+        "company": "Company Name",
+        "role": "Job Title",
+        "startDate": "MM/YYYY",
+        "endDate": "MM/YYYY or Present",
+        "duration": "X years Y months",
+        "responsibilities": ["Key responsibility 1", "Key responsibility 2"],
+        "technologies": ["Technology 1", "Technology 2"]
+      }
+    ]
   },
   "keyAchievements": [
-    "Specific achievements found or typical professional accomplishments"
+    "Specific achievements and projects mentioned"
   ],
   "education": {
-    "degrees": ["Educational qualifications found or typical"],
+    "degrees": ["Educational qualifications found"],
     "institutions": ["Educational institutions found"],
     "certifications": ["Professional certifications identified"]
   },
@@ -239,145 +286,57 @@ Respond with this EXACT JSON format (NO MARKDOWN, NO CODE BLOCKS):
     "location": "location found or 'not extracted'"
   },
   "documentQuality": {
-    "textExtractionSuccess": ${charactersExtracted > 100 ? 'true' : 'false'},
-    "analyzableContent": ${charactersExtracted > 200 ? 'true' : 'false'},
-    "recommendedAction": "Recommendation for improving analysis if needed"
+    "textExtractionSuccess": true,
+    "analyzableContent": true,
+    "recommendedAction": "Analysis completed successfully"
   }
 }
 
-CRITICAL: Return PURE JSON only, no markdown formatting, no code blocks, no additional text.`
+CRITICAL: 
+1. Return PURE JSON only, no markdown formatting, no code blocks, no additional text.
+2. Order work experience from most recent to oldest.
+3. Extract exact dates when available, estimate when unclear.
+4. Include all technologies/tools mentioned for each role.`
 
+          const { text: analysis } = await generateText({
+            model: openai('gpt-4o-mini'),
+            prompt: analysisPrompt,
+            temperature: 0.1,
+            maxTokens: 1500,
+          })
+
+          console.log(`AI analysis completed for ${file.name}`)
+
+          // Parse JSON response
           let result
-
           try {
-            console.log(`Sending content to AI for analysis: ${file.name} (${charactersExtracted} chars)`)
+            let cleanedAnalysis = analysis.trim()
+            cleanedAnalysis = cleanedAnalysis
+              .replace(/^```json\s*/i, '')
+              .replace(/^```\s*/, '')
+              .replace(/\s*```$/i, '')
 
-            const { text: analysis } = await generateText({
-              model: openai('gpt-4o-mini'),
-              prompt: analysisPrompt,
-              temperature: 0.1,
-              maxTokens: 1500,
+            const jsonMatch = cleanedAnalysis.match(/\{[\s\S]*\}/)
+            if (jsonMatch) {
+              cleanedAnalysis = jsonMatch[0]
+            }
+
+            result = JSON.parse(cleanedAnalysis)
+
+            // Add extraction metadata
+            result.charactersExtracted = charactersExtracted
+            result.extractionMethod = extractionMethod
+
+            console.log(`Analysis successful for ${file.name}:`, {
+              extractionMethod,
+              charactersExtracted,
+              skillsFound: result.extractedSkills?.length || 0,
+              companiesFound: result.experienceDetails?.companies?.length || 0
             })
 
-            console.log(`AI analysis completed for ${file.name}`)
-
-            // Enhanced JSON parsing with better error handling
-            try {
-              let cleanedAnalysis = analysis.trim()
-
-              // Remove any markdown formatting
-              cleanedAnalysis = cleanedAnalysis
-                .replace(/^```json\s*/i, '')
-                .replace(/^```\s*/, '')
-                .replace(/\s*```$/i, '')
-                .replace(/^\s*```\s*$/gm, '')
-
-              // Extract JSON object
-              const jsonMatch = cleanedAnalysis.match(/\{[\s\S]*\}/);
-              if (jsonMatch) {
-                cleanedAnalysis = jsonMatch[0];
-              }
-
-              result = JSON.parse(cleanedAnalysis)
-
-              // Ensure all required fields exist with defaults
-              result.extractedSkills = result.extractedSkills || []
-              result.keyAchievements = result.keyAchievements || []
-              result.keyInsights = result.keyInsights || []
-
-              if (!result.experienceDetails) {
-                result.experienceDetails = {
-                  totalYears: "Not specified",
-                  industries: [],
-                  roles: [],
-                  companies: []
-                }
-              }
-
-              if (!result.education) {
-                result.education = {
-                  degrees: [],
-                  institutions: [],
-                  certifications: []
-                }
-              }
-
-              if (!result.contactInfo) {
-                result.contactInfo = {
-                  email: "not extracted",
-                  phone: "not extracted",
-                  location: "not extracted"
-                }
-              }
-
-              if (!result.documentQuality) {
-                result.documentQuality = {
-                  textExtractionSuccess: charactersExtracted > 100,
-                  analyzableContent: charactersExtracted > 200,
-                  recommendedAction: charactersExtracted < 100 ?
-                    "Consider uploading a different format or checking file integrity" :
-                    "Document successfully analyzed"
-                }
-              }
-
-              // Add extraction metadata
-              result.charactersExtracted = charactersExtracted
-              result.extractionMethod = extractionMethod
-
-              console.log(`Analysis successful for ${file.name}:`, {
-                extractionMethod,
-                charactersExtracted,
-                skillsFound: result.extractedSkills.length,
-                companiesFound: result.experienceDetails.companies.length,
-                textExtractionSuccess: result.documentQuality.textExtractionSuccess
-              })
-
-            } catch (parseError) {
-              console.error(`JSON parsing failed for ${file.name}:`, parseError)
-              console.log(`Raw AI response: "${analysis}"`)
-              throw parseError
-            }
-
-          } catch (aiError) {
-            console.error(`AI analysis failed for ${file.name}:`, aiError)
-
-            // Comprehensive fallback response
-            result = {
-              documentType: documentType,
-              extractionQuality: extractionMethod,
-              summary: `File ${file.name} uploaded successfully. ${charactersExtracted} characters extracted using ${extractionMethod} method. AI analysis encountered an error.`,
-              keyInsights: [
-                `File processing: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
-                `Text extraction: ${charactersExtracted} characters using ${extractionMethod}`,
-                `AI analysis failed - technical error occurred`
-              ],
-              extractedSkills: [],
-              experienceDetails: {
-                totalYears: "Analysis failed",
-                industries: [],
-                roles: [],
-                companies: []
-              },
-              keyAchievements: [],
-              education: {
-                degrees: [],
-                institutions: [],
-                certifications: []
-              },
-              contactInfo: {
-                email: "not extracted",
-                phone: "not extracted",
-                location: "not extracted"
-              },
-              documentQuality: {
-                textExtractionSuccess: charactersExtracted > 100,
-                analyzableContent: false,
-                recommendedAction: "AI analysis failed - please try again or contact support"
-              },
-              charactersExtracted: charactersExtracted,
-              extractionMethod: extractionMethod,
-              error: true
-            }
+          } catch (parseError) {
+            console.error(`JSON parsing failed for ${file.name}:`, parseError)
+            throw parseError
           }
 
           // Translate if needed
@@ -385,26 +344,26 @@ CRITICAL: Return PURE JSON only, no markdown formatting, no code blocks, no addi
             result = await translateAnalysis(result, targetLanguage)
           }
 
-          console.log(`File ${file.name} processing completed successfully`)
           return result
 
         } catch (error) {
           console.error(`Critical error processing file ${file.name}:`, error)
           return {
-            documentType: 'unknown',
-            extractionQuality: 'failed',
-            summary: `Critical error processing ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            documentType: docType,
+            extractionQuality: 'error',
+            summary: `ERRORE CRITICO: Impossibile processare ${file.name}. ${error instanceof Error ? error.message : 'Errore sconosciuto'}`,
             keyInsights: [
-              'File processing failed completely',
-              'This may indicate a corrupted file or unsupported format',
-              'Contact support if this error persists'
+              '❌ Errore critico durante il processamento del file',
+              '🔧 Il file potrebbe essere corrotto o in un formato non supportato',
+              '💡 Contatta il supporto se l\'errore persiste'
             ],
             extractedSkills: [],
             experienceDetails: {
-              totalYears: "Processing failed",
+              totalYears: "Errore nel processamento",
               industries: [],
               roles: [],
-              companies: []
+              companies: [],
+              workHistory: []
             },
             keyAchievements: [],
             education: {
@@ -413,17 +372,17 @@ CRITICAL: Return PURE JSON only, no markdown formatting, no code blocks, no addi
               certifications: []
             },
             contactInfo: {
-              email: "not extracted",
-              phone: "not extracted",
-              location: "not extracted"
+              email: "non estratto",
+              phone: "non estratto",
+              location: "non estratto"
             },
             documentQuality: {
               textExtractionSuccess: false,
               analyzableContent: false,
-              recommendedAction: "File processing failed - try a different file format"
+              recommendedAction: "Errore nel processamento - prova con un file diverso"
             },
             charactersExtracted: 0,
-            extractionMethod: 'failed',
+            extractionMethod: 'error',
             error: true
           }
         }
@@ -434,10 +393,7 @@ CRITICAL: Return PURE JSON only, no markdown formatting, no code blocks, no addi
       type: a.documentType,
       extraction: a.extractionMethod,
       chars: a.charactersExtracted,
-      skillsCount: a.extractedSkills?.length || 0,
-      companiesCount: a.experienceDetails?.companies?.length || 0,
-      success: !a.error,
-      textExtracted: a.documentQuality?.textExtractionSuccess || false
+      success: !a.error
     })))
 
     return NextResponse.json({
@@ -445,19 +401,105 @@ CRITICAL: Return PURE JSON only, no markdown formatting, no code blocks, no addi
       analyses: analyses,
       summary: {
         totalFiles: analyses.length,
-        successfulExtractions: analyses.filter(a => a.documentQuality?.textExtractionSuccess).length,
+        successfulExtractions: analyses.filter(a => !a.error && a.charactersExtracted > 0).length,
         failedExtractions: analyses.filter(a => a.error).length
       }
     })
 
   } catch (error) {
     console.error('Critical error in document analysis API:', error)
-
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to analyze document',
       details: 'Check server logs for more information'
     }, { status: 500 })
+  }
+}
+
+// Helper function for binary text extraction (works for PDFs and other docs)
+async function extractTextFromBinary(arrayBuffer: ArrayBuffer): Promise<string> {
+  try {
+    const uint8Array = new Uint8Array(arrayBuffer)
+    const decoder = new TextDecoder('utf-8', { fatal: false })
+    const rawText = decoder.decode(uint8Array)
+
+    // Extract readable text using multiple strategies
+    const readableChunks: string[] = []
+
+    // Strategy 1: Look for continuous readable text (minimum 4 characters)
+    const words = rawText.match(/[A-Za-z0-9À-ÿ][A-Za-z0-9À-ÿ\s.,;:!?()\-]{3,}/g)
+    if (words) {
+      words.forEach(word => {
+        const cleaned = word.trim()
+        // Only include chunks that have real words (not just symbols/numbers)
+        if (cleaned.length >= 4 && /[A-Za-z]{2,}/.test(cleaned)) {
+          // Split long chunks and filter out obvious binary garbage
+          const subWords = cleaned.split(/\s+/)
+          subWords.forEach(subWord => {
+            if (subWord.length >= 2 && subWord.length <= 50 && /[A-Za-z]/.test(subWord)) {
+              readableChunks.push(subWord)
+            }
+          })
+        }
+      })
+    }
+
+    // Strategy 2: Extract email addresses
+    const emails = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)
+    if (emails) {
+      readableChunks.push(...emails)
+    }
+
+    // Strategy 3: Extract phone numbers (more selective)
+    const phones = rawText.match(/[\+]?[0-9\s\-\(\)]{10,}/g)
+    if (phones) {
+      phones.forEach(phone => {
+        const cleanPhone = phone.replace(/[^\d\+]/g, '')
+        if (cleanPhone.length >= 8 && cleanPhone.length <= 15) {
+          readableChunks.push(phone.trim())
+        }
+      })
+    }
+
+    // Strategy 4: Extract dates (more specific patterns)
+    const dates = rawText.match(/\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/g)
+    if (dates) {
+      readableChunks.push(...dates)
+    }
+
+    // Strategy 5: Look for URLs
+    const urls = rawText.match(/https?:\/\/[^\s]+/g)
+    if (urls) {
+      readableChunks.push(...urls)
+    }
+
+    // Remove duplicates and very short/long chunks
+    const uniqueChunks = Array.from(new Set(readableChunks))
+      .filter(chunk => {
+        const trimmed = chunk.trim()
+        return trimmed.length >= 2 &&
+          trimmed.length <= 100 &&
+          !/^[^a-zA-Z]*$/.test(trimmed) && // Not just numbers/symbols
+          !/[\x00-\x1F\x7F-\xFF]{3,}/.test(trimmed) // Not binary garbage
+      })
+
+    // Combine and clean
+    let extractedText = uniqueChunks
+      .join(' ')
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .replace(/[\x00-\x1F\x7F]/g, ' ') // Remove control characters
+      .replace(/\s+/g, ' ') // Normalize whitespace again
+      .trim()
+
+    console.log(`Binary text extraction: found ${uniqueChunks.length} valid text segments`)
+    console.log(`Total extracted length: ${extractedText.length} characters`)
+    console.log(`Sample chunks: ${uniqueChunks.slice(0, 10).join(', ')}`)
+
+    return extractedText
+
+  } catch (error) {
+    console.error('Binary text extraction error:', error)
+    throw error
   }
 }
 
@@ -472,12 +514,12 @@ async function translateAnalysis(analysis: any, targetLanguage: string) {
 
     const translatePrompt = `Translate this document analysis from English to ${getLanguageName(targetLanguage)}. 
     
-IMPORTANT: Keep the JSON structure exactly the same, only translate the text content values. Do not translate:
+Keep the JSON structure exactly the same, only translate the text content values. Do not translate:
 - Field names/keys 
 - Boolean values
 - Numbers
 - Email addresses
-- Technical terms that are commonly used in English in professional contexts
+- Technical terms commonly used in English
 
 JSON to translate:
 ${JSON.stringify(analysis, null, 2)}
@@ -491,7 +533,6 @@ Respond with the translated JSON maintaining the exact same structure.`
       maxTokens: 2000,
     })
 
-    // Parse translated response
     let cleanedTranslation = translatedText.trim()
     cleanedTranslation = cleanedTranslation
       .replace(/^```json\s*/i, '')
@@ -536,7 +577,6 @@ async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
   try {
     const uint8Array = new Uint8Array(arrayBuffer)
 
-    // Look for the ZIP file signature
     if (uint8Array[0] !== 0x50 || uint8Array[1] !== 0x4B) {
       throw new Error('Not a valid ZIP/DOCX file')
     }
@@ -544,10 +584,9 @@ async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
     const decoder = new TextDecoder('utf-8', { fatal: false })
     const fullText = decoder.decode(uint8Array)
 
-    // Look for XML text content patterns common in DOCX files
     const textMatches: string[] = []
 
-    // Pattern 1: Look for <w:t> tags (Word text elements)
+    // Look for <w:t> tags (Word text elements)
     const wtMatches = fullText.match(/<w:t[^>]*>([^<]+)<\/w:t>/g)
     if (wtMatches) {
       wtMatches.forEach(match => {
@@ -558,25 +597,12 @@ async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
       })
     }
 
-    // Pattern 2: Look for text between XML tags
-    const xmlTextMatches = fullText.match(/>([A-Za-z0-9\s\.,;:!?\-@()]+)</g)
-    if (xmlTextMatches) {
-      xmlTextMatches.forEach(match => {
-        const textContent = match.replace(/^>([^<]+)<$/, '$1').trim()
-        if (textContent && textContent.length > 2 && /[A-Za-z]/.test(textContent)) {
-          textMatches.push(textContent)
-        }
-      })
-    }
-
-    // Combine and clean extracted text
     let extractedText = textMatches
       .filter(text => text.length > 2)
       .join(' ')
       .replace(/\s+/g, ' ')
       .trim()
 
-    // Remove common XML artifacts
     extractedText = extractedText
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
@@ -587,8 +613,7 @@ async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
       .replace(/\s+/g, ' ')
       .trim()
 
-    console.log(`Fallback DOCX text extraction: found ${textMatches.length} text segments, ${extractedText.length} characters total`)
-
+    console.log(`Fallback DOCX text extraction: ${extractedText.length} characters`)
     return extractedText
 
   } catch (error) {
