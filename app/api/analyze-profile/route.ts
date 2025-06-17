@@ -1,5 +1,3 @@
-// app/api/analyze-profile/route.ts - ENHANCED VERSION WITH CHRONOLOGICAL EXPERIENCE INTEGRATION
-
 import { generateText } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { NextRequest, NextResponse } from 'next/server'
@@ -8,7 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     const { jobTitle, jobDescription, uploadedFiles, documentAnalyses, targetLanguage = 'en' } = await req.json()
 
-    console.log("Enhanced chronological profile analysis for:", {
+    console.log("Real data profile analysis for:", {
       jobTitle,
       jobDescription: jobDescription?.length,
       uploadedFiles: uploadedFiles?.length,
@@ -20,148 +18,170 @@ export async function POST(req: NextRequest) {
       throw new Error('OpenAI API key not configured')
     }
 
-    // Build comprehensive context with chronological focus - ALWAYS IN ENGLISH FIRST
+    // Check if we have real document data to work with
+    if (!documentAnalyses || documentAnalyses.length === 0) {
+      console.log("No document analyses available, creating basic analysis")
+      return NextResponse.json({
+        success: true,
+        analysis: createBasicAnalysis(jobTitle, jobDescription)
+      })
+    }
+
+    // Filter out failed document analyses
+    const validAnalyses = documentAnalyses.filter((analysis: any) => 
+      analysis && !analysis.error && (
+        (analysis.experienceDetails?.workHistory && analysis.experienceDetails.workHistory.length > 0) ||
+        (analysis.extractedSkills && analysis.extractedSkills.length > 0) ||
+        (analysis.keyAchievements && analysis.keyAchievements.length > 0)
+      )
+    )
+
+    if (validAnalyses.length === 0) {
+      console.log("No valid document analyses found, creating basic analysis")
+      return NextResponse.json({
+        success: true,
+        analysis: createBasicAnalysis(jobTitle, jobDescription)
+      })
+    }
+
+    // Build comprehensive context with real data only - ALWAYS IN ENGLISH FIRST
     let fullContext = `CANDIDATE PROFILE FOR INTERVIEW PREPARATION:
 
 Interview Position: ${jobTitle}
 
-Role Context and Requirements: ${jobDescription}`
+Role Context and Requirements: ${jobDescription}
 
-    // Add enhanced chronological work experience context
-    if (documentAnalyses && documentAnalyses.length > 0) {
-      fullContext += `\n\n=== COMPREHENSIVE CANDIDATE BACKGROUND ANALYSIS ===\n`
-      fullContext += `Documents analyzed: ${documentAnalyses.length} files\n`
+=== REAL EXTRACTED CANDIDATE DATA ===
+Documents analyzed: ${validAnalyses.length} files with valid data extraction
 
-      documentAnalyses.forEach((analysis: any, index: number) => {
-        const fileName = uploadedFiles?.[index] || `Document ${index + 1}`
-
-        fullContext += `\nDocument: ${fileName}
-Document Type: ${analysis.documentType}
-Professional Summary: ${analysis.summary}
-
-EXTRACTED SKILLS AND COMPETENCIES:
-Technical Skills: ${(analysis.extractedSkills || []).join(', ')}
-Industry Experience: ${(analysis.experienceDetails?.industries || []).join(', ')}
-Functional Areas: ${(analysis.experienceDetails?.functionalAreas || []).join(', ')}
-
-CHRONOLOGICAL WORK EXPERIENCE:
-Total Professional Experience: ${analysis.experienceDetails?.totalYears || 'Not specified'}
-Career Level: ${analysis.experienceDetails?.careerLevel || 'Not specified'}
 `
 
-        // Add detailed chronological work history
-        if (analysis.experienceDetails?.workHistory && analysis.experienceDetails.workHistory.length > 0) {
-          fullContext += `\nCHRONOLOGICAL WORK HISTORY (Most Recent First):\n`
+    // Add real extracted data context
+    validAnalyses.forEach((analysis: any, index: number) => {
+      const fileName = uploadedFiles?.[index] || `Document ${index + 1}`
 
-          analysis.experienceDetails.workHistory.forEach((job: any, jobIndex: number) => {
+      fullContext += `
+Document: ${fileName}
+Document Type: ${analysis.documentType || 'Professional Document'}
+Extraction Quality: ${analysis.extractionMethod || 'processed'}
+
+`
+
+      // Add real skills if available
+      if (analysis.extractedSkills && analysis.extractedSkills.length > 0) {
+        fullContext += `REAL EXTRACTED SKILLS:
+${analysis.extractedSkills.join(', ')}
+
+`
+      }
+
+      // Add real work experience if available
+      if (analysis.experienceDetails?.workHistory && analysis.experienceDetails.workHistory.length > 0) {
+        fullContext += `REAL WORK EXPERIENCE:
+Total Professional Experience: ${analysis.experienceDetails.totalYears || 'Multiple years'}
+Career Level: ${analysis.experienceDetails.careerLevel || 'Professional'}
+
+DOCUMENTED WORK HISTORY (Most Recent First):
+`
+
+        analysis.experienceDetails.workHistory.forEach((job: any, jobIndex: number) => {
+          if (job.company || job.position) {
             fullContext += `
-${jobIndex + 1}. ${job.position} at ${job.company}
-   Period: ${job.startDate} - ${job.endDate} (${job.duration})
-   Industry: ${job.industry || 'Not specified'}
-   Company Size: ${job.companySize || 'Not specified'}
-   Key Responsibilities: ${(job.responsibilities || []).join(', ')}
-   Technologies Used: ${(job.technologies || []).join(', ')}
-   Achievements: ${(job.achievements || []).join(', ')}
+${jobIndex + 1}. ${job.position || 'Professional Role'} at ${job.company || 'Company'}
+   Period: ${job.startDate || 'Start'} - ${job.endDate || 'End'} ${job.duration ? `(${job.duration})` : ''}
+   Industry: ${job.industry || 'Professional sector'}
+   Key Responsibilities: ${(job.responsibilities || []).join(', ') || 'Professional responsibilities'}
+   Technologies Used: ${(job.technologies || []).join(', ') || 'Professional tools'}
+   Achievements: ${(job.achievements || []).join(', ') || 'Professional accomplishments'}
 `
-          })
-        }
+          }
+        })
+      }
 
-        // Add career progression insights
-        if (analysis.careerProgression) {
-          fullContext += `\nCAREER PROGRESSION ANALYSIS:
-Seniority Trend: ${analysis.careerProgression.seniorityTrend || 'Not analyzed'}
-Industry Focus: ${analysis.careerProgression.industryFocus || 'Not analyzed'}
-Leadership Experience: ${analysis.careerProgression.leadershipExperience || 'Not analyzed'}
+      // Add real achievements if available
+      if (analysis.keyAchievements && analysis.keyAchievements.length > 0) {
+        fullContext += `
+REAL KEY ACHIEVEMENTS:
+${analysis.keyAchievements.join(', ')}
+`
+      }
+
+      // Add real education if available
+      if (analysis.education && (analysis.education.degrees?.length > 0 || analysis.education.certifications?.length > 0)) {
+        fullContext += `
+REAL EDUCATION & CERTIFICATIONS:
+Degrees: ${(analysis.education.degrees || []).join(', ') || 'Not specified'}
+Certifications: ${(analysis.education.certifications || []).join(', ') || 'Not specified'}
+`
+      }
+
+      // Add real contact information if available
+      if (analysis.contactInfo) {
+        const realContactFields = Object.entries(analysis.contactInfo)
+          .filter(([key, value]) => value && value !== 'not extracted')
+          .map(([key, value]) => `${key}: ${value}`)
+        
+        if (realContactFields.length > 0) {
+          fullContext += `
+REAL CONTACT INFORMATION:
+${realContactFields.join(', ')}
 `
         }
+      }
 
-        // Add education and certifications
-        if (analysis.education) {
-          fullContext += `\nEDUCATION & CERTIFICATIONS:
-Degrees: ${(analysis.education.degrees || []).join(', ')}
-Institutions: ${(analysis.education.institutions || []).join(', ')}
-Certifications: ${(analysis.education.certifications || []).join(', ')}
-`
-        }
+      fullContext += `\n`
+    })
 
-        // Add contact information if available
-        if (analysis.contactInfo) {
-          fullContext += `\nCONTACT INFORMATION:
-Email: ${analysis.contactInfo.email || 'Not provided'}
-Phone: ${analysis.contactInfo.phone || 'Not provided'}
-Location: ${analysis.contactInfo.location || 'Not provided'}
-LinkedIn: ${analysis.contactInfo.linkedin || 'Not provided'}
-Portfolio: ${analysis.contactInfo.portfolio || 'Not provided'}
-`
-        }
+    fullContext += `\nIMPORTANT: Use ONLY the real extracted data above. Do NOT invent, assume, or add any information not explicitly provided.`
 
-        fullContext += `\nKEY ACHIEVEMENTS: ${(analysis.keyAchievements || []).join(', ')}\n`
-      })
+    // Create analysis prompt that works only with real data - ALWAYS IN ENGLISH
+    const analysisPrompt = `You are analyzing a candidate's real professional profile extracted from actual documents. Create an interview preparation analysis using ONLY the real extracted data provided.
 
-      fullContext += `\nIMPORTANT: The above chronological work experience data has been extracted from actual CV documents and represents REAL career history that should be referenced in interview responses.`
-    } else if (uploadedFiles && uploadedFiles.length > 0) {
-      fullContext += `\n\n=== CANDIDATE DOCUMENTS ===\n`
-      fullContext += `Documents provided: ${uploadedFiles.length} files\n`
-      fullContext += `Files: ${uploadedFiles.join(', ')}\n`
-      fullContext += `Note: Documents contain professional background information relevant to the ${jobTitle} position.`
-    }
-
-    // Create comprehensive chronological analysis prompt - ALWAYS IN ENGLISH
-    const analysisPrompt = `You are analyzing a candidate's complete professional profile for advanced interview preparation. This candidate will be answering interview questions based on their ACTUAL chronological work experience and documented career history.
-
-Based on the interview position, context, and detailed chronological work experience extracted from CV documents, provide a comprehensive analysis that enables an AI to respond accurately as this candidate during interviews.
-
-CONTEXT TO ANALYZE:
+REAL EXTRACTED DATA TO ANALYZE:
 ${fullContext}
 
-Create a detailed analysis focusing on:
-1. PROFESSIONAL PROFILE: Comprehensive overview based on actual chronological work experience
-2. CAREER PROGRESSION: Analysis of seniority growth and industry expertise over time
-3. EXPERIENCE HIGHLIGHTS: Concrete examples from their actual chronological work history
-4. TECHNICAL EVOLUTION: How their technical skills developed through different roles
-5. INDUSTRY EXPERTISE: Deep domain knowledge gained through career progression
-6. LEADERSHIP JOURNEY: Evidence of growing responsibilities and team management
-7. ROLE ALIGNMENT: How their chronological experience aligns with target position
-8. INTERVIEW STRATEGY: How to leverage their actual career progression in responses
+Create a comprehensive analysis that enables an AI to respond accurately as this candidate during interviews, using ONLY real information.
 
 CRITICAL INSTRUCTIONS:
-- Use ONLY actual information extracted from the chronological work experience
-- Reference specific companies, job titles, years, and achievements from their CV
-- Build responses around their REAL career progression and industry expertise
-- Make recommendations based on their actual professional development path
-- Highlight how their experience evolution matches the target role requirements
+- Use ONLY real information extracted from the documents
+- Do NOT invent, assume, or guess any information
+- If specific information is not available, acknowledge the limitation
+- Focus on what can be verified from the extracted data
+- Reference actual companies, job titles, and experiences only if explicitly provided
 - All content must be in English (will be translated later if needed)
 
 Respond with detailed JSON in this exact format:
 {
-  "candidate_profile": "Comprehensive professional overview based on actual chronological work experience and career progression",
-  "career_progression_analysis": "Detailed analysis of how the candidate's career has evolved over time, including seniority growth and industry expertise development",
-  "key_strengths": ["Specific strength 1 from actual work history", "Specific strength 2 from career progression", "Specific strength 3 from industry expertise", "Specific strength 4 from technical evolution"],
-  "experience_highlights": ["Specific example 1 from actual chronological work history with company and timeframe", "Specific example 2 from documented career progression", "Specific example 3 from real professional achievements"],
-  "technical_competencies": ["Actual skill 1 from CV with years of experience", "Actual skill 2 from multiple roles", "Actual skill 3 from career progression", "Actual skill 4 from latest positions", "Actual skill 5 from documented projects"],
-  "industry_expertise": ["Domain knowledge 1 from career history", "Sector expertise 2 from work progression", "Industry insight 3 from multiple roles"],
-  "leadership_and_management": "Analysis of leadership roles and team management experience based on actual job titles and responsibilities",
-  "potential_challenges": ["Realistic challenge 1 based on role gap analysis from actual experience", "Realistic challenge 2 based on career progression gaps"],
-  "interview_strategy": "Detailed strategy based on actual chronological career progression and how to present the professional journey for maximum impact",
-  "role_fit_analysis": "Analysis of how actual chronological work experience and career progression matches target role requirements",
-  "preparation_recommendations": ["Specific tip 1 based on real career progression", "Specific tip 2 based on actual work history", "Specific tip 3 based on documented achievements"],
+  "candidate_profile": "Professional overview based ONLY on real extracted data",
+  "career_progression_analysis": "Analysis based ONLY on documented work history if available",
+  "key_strengths": ["Real strength 1 from extracted data", "Real strength 2", "Real strength 3", "Real strength 4"],
+  "experience_highlights": ["Real example 1 from actual work history", "Real example 2", "Real example 3"],
+  "technical_competencies": ["Real skill 1 from extracted data", "Real skill 2", "Real skill 3", "Real skill 4", "Real skill 5"],
+  "industry_expertise": ["Real domain knowledge 1", "Real sector expertise 2", "Real industry insight 3"],
+  "leadership_and_management": "Real leadership experience if documented in extracted data, null if not available",
+  "potential_challenges": ["Real challenge 1 based on extracted data gaps", "Real challenge 2"],
+  "interview_strategy": "Strategy based on real extracted career data and documented experience",
+  "role_fit_analysis": "Analysis of how real extracted experience matches target role requirements",
+  "preparation_recommendations": ["Real tip 1 based on extracted data", "Real tip 2", "Real tip 3"],
   "chronological_talking_points": [
     {
-      "period": "Most recent role period",
-      "company": "Actual company name",
-      "position": "Actual job title",
-      "key_talking_points": ["Achievement 1", "Achievement 2", "Skills developed"],
-      "interview_relevance": "How this role relates to target position"
+      "period": "Real period from extracted data",
+      "company": "Real company name from documents",
+      "position": "Real job title from documents",
+      "key_talking_points": ["Real achievement 1", "Real achievement 2", "Real skills used"],
+      "interview_relevance": "How this real experience relates to target position"
     }
   ],
-  "career_narrative": "Cohesive story of professional development that connects all roles and leads to the target position",
-  "keySkills": ["Real skill 1 with experience level", "Real skill 2 with expertise depth", "Real skill 3 with industry context", "Real skill 4 with progression evidence", "Real skill 5 with recent usage", "Real skill 6 with advanced proficiency"],
-  "interviewAreas": ["Area 1 based on actual experience", "Area 2 from career progression", "Area 3 from industry expertise", "Area 4 from technical evolution", "Area 5 from leadership journey"],
-  "strengths": ["Strength 1 from documented experience", "Strength 2 from career progression", "Strength 3 from industry expertise", "Strength 4 from technical depth"],
-  "complexity": "Medium/High based on career complexity and seniority",
+  "career_narrative": "Cohesive story based ONLY on real extracted professional data",
+  "keySkills": ["Real skill 1", "Real skill 2", "Real skill 3", "Real skill 4", "Real skill 5", "Real skill 6"],
+  "interviewAreas": ["Area 1 based on real experience", "Area 2 from extracted data", "Area 3 from documented skills"],
+  "strengths": ["Real strength 1", "Real strength 2", "Real strength 3", "Real strength 4"],
+  "complexity": "Medium/High based on real career complexity",
   "matchScore": 85,
-  "profileInsights": ["Insight 1 about career-role fit based on actual progression", "Insight 2 about industry alignment from work history", "Insight 3 about technical readiness from skill evolution", "Insight 4 about leadership potential from documented experience"]
+  "profileInsights": ["Real insight 1 about career-role fit", "Real insight 2 about documented experience", "Real insight 3 about extracted skills"]
 }
+
+If insufficient real data is available for any field, use null or empty arrays rather than making up information.
 
 Respond ONLY with valid JSON, no additional text or markdown.`
 
@@ -169,12 +189,12 @@ Respond ONLY with valid JSON, no additional text or markdown.`
       model: openai('gpt-4o-mini'),
       prompt: analysisPrompt,
       temperature: 0.2,
-      maxTokens: 3000, // Increased for comprehensive chronological analysis
+      maxTokens: 3000,
     })
 
-    console.log("Enhanced chronological AI Analysis completed")
+    console.log("Real data AI Analysis completed")
 
-    // Clean the response
+    // Clean and validate the response
     let cleanedText = text.trim()
     if (cleanedText.startsWith('```json')) {
       cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '')
@@ -184,6 +204,9 @@ Respond ONLY with valid JSON, no additional text or markdown.`
 
     // Parse the AI response
     let analysis = JSON.parse(cleanedText)
+
+    // Validate and clean the analysis to ensure only real data
+    analysis = validateAndCleanRealDataAnalysis(analysis)
 
     // Translate to target language if not English
     if (targetLanguage !== 'en') {
@@ -196,13 +219,17 @@ Respond ONLY with valid JSON, no additional text or markdown.`
     })
 
   } catch (error) {
-    console.error('Error analyzing chronological profile:', error)
+    console.error('Error analyzing real data profile:', error)
 
-    // Generate AI-powered fallback with chronological focus
+    // Generate fallback with real data only
     const requestData = await req.json().catch(() => ({}))
     const fallbackJobTitle = requestData.jobTitle || 'Professional Position'
     const fallbackTargetLanguage = requestData.targetLanguage || 'en'
-    const fallbackResponse = await generateChronologicalFallbackAnalysis(fallbackJobTitle, fallbackTargetLanguage, requestData.documentAnalyses)
+    const fallbackResponse = await generateRealDataFallbackAnalysis(
+      fallbackJobTitle, 
+      fallbackTargetLanguage, 
+      requestData.documentAnalyses || []
+    )
 
     return NextResponse.json({
       success: false,
@@ -212,145 +239,191 @@ Respond ONLY with valid JSON, no additional text or markdown.`
   }
 }
 
-// Function to generate AI-powered fallback analysis with chronological focus
-async function generateChronologicalFallbackAnalysis(jobTitle: string, targetLanguage: string, documentAnalyses: any[] = []) {
+// Function to create basic analysis when no real data is available
+function createBasicAnalysis(jobTitle: string, jobDescription: string) {
+  return {
+    candidate_profile: `Candidate applying for ${jobTitle} position`,
+    career_progression_analysis: null,
+    key_strengths: [],
+    experience_highlights: [],
+    technical_competencies: [],
+    industry_expertise: [],
+    leadership_and_management: null,
+    potential_challenges: ["Prepare specific examples from your experience", "Research company-specific requirements"],
+    interview_strategy: `Focus on demonstrating fit for ${jobTitle} role based on your background and the job requirements`,
+    role_fit_analysis: `Interview preparation for ${jobTitle} position`,
+    preparation_recommendations: [
+      "Review the job description carefully",
+      "Prepare specific examples from your experience",
+      "Research the company and industry"
+    ],
+    chronological_talking_points: [],
+    career_narrative: `Professional candidate interested in ${jobTitle} role`,
+    keySkills: [],
+    interviewAreas: [
+      "Role requirements and responsibilities",
+      "Your relevant experience and background",
+      "Career goals and motivation"
+    ],
+    strengths: [],
+    complexity: "Basic",
+    matchScore: 65,
+    profileInsights: [
+      "Basic interview preparation mode",
+      "Upload CV for personalized analysis with real career data"
+    ]
+  }
+}
+
+// Function to validate and clean analysis to ensure only real data
+function validateAndCleanRealDataAnalysis(analysis: any) {
+  // Filter out any generic or potentially made-up content
+  const cleanArray = (arr: any[]) => {
+    if (!Array.isArray(arr)) return []
+    return arr.filter(item => 
+      item && 
+      typeof item === 'string' && 
+      item.length > 0 &&
+      !item.includes('Professional competency') &&
+      !item.includes('Technical skill') &&
+      !item.includes('Industry knowledge') &&
+      !item.includes('Communication') &&
+      !item.includes('Problem solving') &&
+      !item.includes('Leadership ability')
+    )
+  }
+
+  return {
+    candidate_profile: analysis.candidate_profile || null,
+    career_progression_analysis: analysis.career_progression_analysis || null,
+    key_strengths: cleanArray(analysis.key_strengths || []),
+    experience_highlights: cleanArray(analysis.experience_highlights || []),
+    technical_competencies: cleanArray(analysis.technical_competencies || []),
+    industry_expertise: cleanArray(analysis.industry_expertise || []),
+    leadership_and_management: analysis.leadership_and_management || null,
+    potential_challenges: cleanArray(analysis.potential_challenges || []),
+    interview_strategy: analysis.interview_strategy || null,
+    role_fit_analysis: analysis.role_fit_analysis || null,
+    preparation_recommendations: cleanArray(analysis.preparation_recommendations || []),
+    chronological_talking_points: Array.isArray(analysis.chronological_talking_points) ? 
+      analysis.chronological_talking_points.filter((point: any) => 
+        point && point.company && point.position && 
+        !point.company.includes('Recent organization') &&
+        !point.position.includes('Recent role')
+      ) : [],
+    career_narrative: analysis.career_narrative || null,
+    keySkills: cleanArray(analysis.keySkills || []),
+    interviewAreas: cleanArray(analysis.interviewAreas || []),
+    strengths: cleanArray(analysis.strengths || []),
+    complexity: analysis.complexity || "Basic",
+    matchScore: Math.min(Math.max(analysis.matchScore || 65, 60), 95),
+    profileInsights: cleanArray(analysis.profileInsights || [])
+  }
+}
+
+// Function to generate fallback analysis with real data only
+async function generateRealDataFallbackAnalysis(jobTitle: string, targetLanguage: string, documentAnalyses: any[] = []) {
   try {
     if (!process.env.OPENAI_API_KEY) {
-      throw new Error('No API key for fallback')
+      return createBasicAnalysis(jobTitle, "No detailed analysis available")
     }
 
-    // Extract basic info from document analyses if available
-    let workExperience = ""
-    let totalYears = "Professional experience"
-    let industries = ["Technology", "Business"]
-    let skills = ["Professional competencies", "Technical skills", "Communication", "Problem solving"]
+    // Extract real data from document analyses if available
+    let realSkills: string[] = []
+    let realCompanies: string[] = []
+    let realRoles: string[] = []
+    let totalExperience = ""
+    let workHistory: any[] = []
 
     if (documentAnalyses && documentAnalyses.length > 0) {
-      const firstAnalysis = documentAnalyses[0]
-      if (firstAnalysis.experienceDetails) {
-        totalYears = firstAnalysis.experienceDetails.totalYears || "Professional experience"
-        industries = firstAnalysis.experienceDetails.industries || industries
-        skills = firstAnalysis.extractedSkills || skills
-
-        if (firstAnalysis.experienceDetails.workHistory && firstAnalysis.experienceDetails.workHistory.length > 0) {
-          const recentRole = firstAnalysis.experienceDetails.workHistory[0]
-          workExperience = `Recent experience as ${recentRole.position} at ${recentRole.company}`
+      documentAnalyses.forEach((analysis: any) => {
+        if (analysis && !analysis.error) {
+          if (analysis.extractedSkills) {
+            realSkills.push(...analysis.extractedSkills)
+          }
+          if (analysis.experienceDetails?.companies) {
+            realCompanies.push(...analysis.experienceDetails.companies)
+          }
+          if (analysis.experienceDetails?.roles) {
+            realRoles.push(...analysis.experienceDetails.roles)
+          }
+          if (analysis.experienceDetails?.totalYears) {
+            totalExperience = analysis.experienceDetails.totalYears
+          }
+          if (analysis.experienceDetails?.workHistory) {
+            workHistory.push(...analysis.experienceDetails.workHistory)
+          }
         }
-      }
+      })
     }
 
-    const fallbackPrompt = `Generate a professional candidate profile analysis for someone applying for a ${jobTitle} position. ${workExperience ? `They have ${workExperience}.` : ''} Create realistic and professional content based on career progression.
+    // Remove duplicates
+    realSkills = [...new Set(realSkills)].filter(Boolean)
+    realCompanies = [...new Set(realCompanies)].filter(Boolean)
+    realRoles = [...new Set(realRoles)].filter(Boolean)
+    workHistory = workHistory.filter(job => job.company || job.position)
 
-Use this information if available:
-- Experience: ${totalYears}
-- Industries: ${industries.join(', ')}
-- Skills: ${skills.slice(0, 6).join(', ')}
+    // If we have some real data, create enhanced fallback
+    if (realSkills.length > 0 || workHistory.length > 0) {
+      const fallbackPrompt = `Generate a minimal professional analysis for a ${jobTitle} candidate based on this REAL extracted data:
+
+REAL SKILLS: ${realSkills.join(', ') || 'None extracted'}
+REAL COMPANIES: ${realCompanies.join(', ') || 'None extracted'}
+REAL ROLES: ${realRoles.join(', ') || 'None extracted'}
+TOTAL EXPERIENCE: ${totalExperience || 'Not specified'}
+WORK HISTORY ENTRIES: ${workHistory.length}
+
+Create realistic content based ONLY on this real data. Do not invent information.
 
 Respond with JSON in this exact format:
 {
-  "candidate_profile": "Professional overview for ${jobTitle} candidate with career progression focus",
-  "career_progression_analysis": "Analysis of professional development and industry expertise growth",
-  "key_strengths": ["Professional strength 1 based on experience", "Technical competency 2", "Leadership capability 3", "Industry expertise 4"],
-  "experience_highlights": ["Professional experience example 1", "Career progression example 2", "Achievement example 3"],
-  "technical_competencies": ["Technical skill 1 with experience level", "Professional tool 2", "Industry knowledge 3", "Technical capability 4", "Specialized skill 5"],
-  "industry_expertise": ["Domain knowledge 1", "Sector understanding 2", "Industry insight 3"],
-  "leadership_and_management": "Leadership experience and team management capabilities demonstrated through career progression",
-  "potential_challenges": ["Professional development area 1", "Skill enhancement opportunity 2"],
-  "interview_strategy": "Strategy focused on highlighting career progression and professional growth for ${jobTitle} interview",
-  "role_fit_analysis": "Professional analysis of fit for ${jobTitle} role based on career trajectory",
-  "preparation_recommendations": ["Preparation tip 1 based on experience", "Professional recommendation 2", "Career-focused advice 3"],
-  "chronological_talking_points": [
-    {
-      "period": "Recent professional period",
-      "company": "Recent organization",
-      "position": "Recent role",
-      "key_talking_points": ["Professional achievement 1", "Technical accomplishment 2", "Leadership example 3"],
-      "interview_relevance": "How recent experience relates to ${jobTitle} position"
-    }
-  ],
-  "career_narrative": "Cohesive professional story that demonstrates growth and readiness for ${jobTitle} role",
-  "keySkills": ["Professional Skill 1", "Technical Competency 2", "Industry Knowledge 3", "Leadership Ability 4", "Communication 5", "Problem Solving 6"],
-  "interviewAreas": ["Professional experience discussion", "Technical competency demonstration", "Career progression narrative", "Industry knowledge assessment", "Leadership potential exploration"],
-  "strengths": ["Professional background strength", "Technical competency demonstration", "Career progression evidence", "Industry expertise proof"],
+  "candidate_profile": "Professional overview based on real extracted data",
+  "career_progression_analysis": "Analysis based on real work history" or null,
+  "key_strengths": ["real strength 1", "real strength 2"] or [],
+  "experience_highlights": ["real example 1", "real example 2"] or [],
+  "technical_competencies": ["real skill 1", "real skill 2"] or [],
+  "industry_expertise": ["real domain 1"] or [],
+  "leadership_and_management": "real leadership info" or null,
+  "potential_challenges": ["prepare examples from real experience"],
+  "interview_strategy": "strategy based on real data",
+  "role_fit_analysis": "analysis based on real extracted information",
+  "preparation_recommendations": ["tip based on real data"],
+  "chronological_talking_points": [],
+  "career_narrative": "narrative based on real career data",
+  "keySkills": ["real skill 1", "real skill 2"] or [],
+  "interviewAreas": ["area based on real experience"],
+  "strengths": ["real strength from data"],
   "complexity": "Medium",
   "matchScore": 75,
-  "profileInsights": ["Professional insight 1 about career-role alignment", "Technical insight 2 about competency match", "Experience insight 3 about growth potential", "Industry insight 4 about sector fit"]
+  "profileInsights": ["insight based on real data"]
 }
 
-Make it professional and realistic for a ${jobTitle} position. All content in English.`
+Use English. Include only information that can be verified from the real data provided.`
 
-    const { text } = await generateText({
-      model: openai('gpt-4o-mini'),
-      prompt: fallbackPrompt,
-      temperature: 0.3,
-      maxTokens: 2000,
-    })
+      const { text } = await generateText({
+        model: openai('gpt-4o-mini'),
+        prompt: fallbackPrompt,
+        temperature: 0.3,
+        maxTokens: 1500,
+      })
 
-    let fallbackAnalysis = JSON.parse(text.trim())
+      let fallbackAnalysis = JSON.parse(text.trim())
+      fallbackAnalysis = validateAndCleanRealDataAnalysis(fallbackAnalysis)
 
-    // Translate if needed
-    if (targetLanguage !== 'en') {
-      fallbackAnalysis = await translateProfileAnalysis(fallbackAnalysis, targetLanguage)
+      // Translate if needed
+      if (targetLanguage !== 'en') {
+        fallbackAnalysis = await translateProfileAnalysis(fallbackAnalysis, targetLanguage)
+      }
+
+      return fallbackAnalysis
     }
 
-    return fallbackAnalysis
+    // If no real data available, return basic analysis
+    return createBasicAnalysis(jobTitle, "No detailed CV analysis available")
 
   } catch (fallbackError) {
-    console.error('Chronological fallback generation failed:', fallbackError)
-
-    // Last resort minimal structure with chronological focus
-    const minimalAnalysis = {
-      candidate_profile: `Professional candidate applying for ${jobTitle} position with relevant career progression and documented experience`,
-      career_progression_analysis: `Professional development path showing growth in technical competencies and industry expertise relevant to ${jobTitle} role`,
-      key_strengths: ["Professional experience in relevant domain", "Technical competencies from career progression", "Problem-solving skills developed over time", "Communication abilities honed through professional roles"],
-      experience_highlights: ["Relevant professional experience in industry", "Technical project completion track record", "Professional skill development through career progression"],
-      technical_competencies: ["Core technical skills for target role", "Industry-standard tools and methodologies", "Professional development practices", "Communication technologies", "Continuous learning approach"],
-      industry_expertise: ["Relevant industry knowledge", "Sector understanding", "Professional domain expertise"],
-      leadership_and_management: "Professional experience demonstrates growth in responsibility and potential for team collaboration and leadership",
-      potential_challenges: ["Prepare specific examples demonstrating technical competencies from career history", "Research company-specific technologies and current industry practices"],
-      interview_strategy: "Focus on highlighting documented career progression and professional growth. Use specific examples from work history to demonstrate capabilities and alignment with role requirements.",
-      role_fit_analysis: `Strong alignment between career progression and ${jobTitle} position requirements. Professional experience and technical development show good potential for success.`,
-      preparation_recommendations: ["Review specific examples from professional career progression", "Prepare to discuss technical competencies developed over time", "Research company technology stack and current industry practices"],
-      chronological_talking_points: [
-        {
-          period: "Recent professional experience",
-          company: "Recent organization",
-          position: "Recent professional role",
-          key_talking_points: ["Professional achievement", "Technical contribution", "Team collaboration"],
-          interview_relevance: "Demonstrates readiness for target position responsibilities"
-        }
-      ],
-      career_narrative: `Professional journey shows consistent growth and development leading naturally to ${jobTitle} role. Career progression demonstrates both technical competency and professional maturity.`,
-      keySkills: ["Technical Competency", "Professional Communication", "Problem Solving", "Career Progression", "Industry Knowledge", "Continuous Learning"],
-      interviewAreas: [
-        "Professional experience and career progression",
-        "Technical skills developed through work history",
-        "Team collaboration and professional growth",
-        "Problem-solving approach refined over time",
-        "Industry knowledge and career development goals"
-      ],
-      strengths: [
-        "Documented professional career progression",
-        "Technical competencies developed through experience",
-        "Professional development track record",
-        "Strong foundation for continued growth"
-      ],
-      complexity: "Medium",
-      matchScore: 78,
-      profileInsights: [
-        "Professional candidate with documented career progression",
-        "Good alignment between work history and role requirements",
-        "Strong potential for success based on professional development trajectory",
-        "Career progression mindset evident from professional background"
-      ]
-    }
-
-    // Translate minimal analysis if needed
-    if (targetLanguage !== 'en') {
-      return await translateProfileAnalysis(minimalAnalysis, targetLanguage)
-    }
-
-    return minimalAnalysis
+    console.error('Real data fallback generation failed:', fallbackError)
+    return createBasicAnalysis(jobTitle, "Basic interview preparation mode")
   }
 }
 
@@ -367,8 +440,8 @@ Keep the JSON structure EXACTLY the same, only translate the text content values
 - Field names/keys
 - Boolean values  
 - Numbers
-- Company names
-- Technology names
+- Company names (keep as original)
+- Technology names (keep as original)
 - Technical terms commonly used in English
 
 ${JSON.stringify(analysis, null, 2)}
@@ -382,7 +455,18 @@ Respond with the translated JSON maintaining the exact same structure and field 
       maxTokens: 2500,
     })
 
-    return JSON.parse(translatedText.trim())
+    let cleanedTranslation = translatedText.trim()
+    cleanedTranslation = cleanedTranslation
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/, '')
+      .replace(/\s*```$/i, '')
+
+    const jsonMatch = cleanedTranslation.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      cleanedTranslation = jsonMatch[0]
+    }
+
+    return JSON.parse(cleanedTranslation)
   } catch (error) {
     console.warn('Translation failed, returning original English:', error)
     return analysis
