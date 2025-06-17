@@ -40,7 +40,7 @@ interface JobData {
 }
 
 interface AnalysisData {
-  // Enhanced analysis fields with chronological focus
+  // Enhanced analysis fields with career focus
   candidate_profile?: string
   career_progression_analysis?: string
   key_strengths?: string[]
@@ -52,7 +52,7 @@ interface AnalysisData {
   interview_strategy?: string
   role_fit_analysis?: string
   preparation_recommendations?: string[]
-  chronological_talking_points?: Array<{
+  career_talking_points?: Array<{
     period: string
     company: string
     position: string
@@ -97,16 +97,16 @@ export default function EnhancedSummaryPage() {
     const parsedJobData = JSON.parse(data)
     setJobData(parsedJobData)
 
-    // Call enhanced AI analysis API with chronological focus
-    analyzeChronologicalProfile(parsedJobData)
+    // Call enhanced AI analysis API
+    analyzeProfile(parsedJobData)
   }, [router])
 
-  const analyzeChronologicalProfile = async (jobData: JobData) => {
+  const analyzeProfile = async (jobData: JobData) => {
     try {
-      console.log("Starting enhanced chronological AI profile analysis...")
+      console.log("Starting enhanced AI profile analysis...")
       setIsLoading(true)
 
-      // Get stored document analyses with chronological data
+      // Get stored document analyses
       let documentAnalyses = jobData.documentAnalyses || []
 
       if (!documentAnalyses || documentAnalyses.length === 0) {
@@ -114,7 +114,7 @@ export default function EnhancedSummaryPage() {
         if (storedAnalyses) {
           try {
             documentAnalyses = JSON.parse(storedAnalyses)
-            console.log("Retrieved chronological document analyses:", documentAnalyses.length)
+            console.log("Retrieved document analyses:", documentAnalyses.length)
           } catch (error) {
             console.warn("Failed to parse stored document analyses:", error)
             documentAnalyses = []
@@ -122,7 +122,7 @@ export default function EnhancedSummaryPage() {
         }
       }
 
-      const response = await fetch('/api/analyze-profile', {
+      const response = await fetch('/api/analyze-profile-enhanced', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ export default function EnhancedSummaryPage() {
       })
 
       const result = await response.json()
-      console.log("Enhanced chronological AI Analysis result:", result)
+      console.log("Enhanced AI Analysis result:", result)
 
       if (result.success) {
         setAnalysisData(result.analysis)
@@ -143,8 +143,8 @@ export default function EnhancedSummaryPage() {
         setAnalysisData(result.analysis)
       }
     } catch (error) {
-      console.error("Error in enhanced chronological profile analysis:", error)
-      // Enhanced fallback with chronological structure
+      console.error("Error in enhanced profile analysis:", error)
+      // Enhanced fallback with career structure
       setAnalysisData({
         candidate_profile: `Professional candidate applying for ${jobData.jobTitle} with documented career progression and relevant industry experience.`,
         career_progression_analysis: `Career trajectory shows consistent professional growth with increasing responsibilities and technical expertise development over time.`,
@@ -183,7 +183,7 @@ export default function EnhancedSummaryPage() {
           "Prepare to discuss technical competencies developed over time",
           "Research target company's technology stack and industry position"
         ],
-        chronological_talking_points: [
+        career_talking_points: [
           {
             period: "Recent Professional Experience",
             company: "Current/Recent Organization",
@@ -226,7 +226,7 @@ export default function EnhancedSummaryPage() {
   }
 
   const handleStartInterview = async () => {
-    console.log("Starting interview with enhanced chronological AI analysis")
+    console.log("Starting interview with enhanced AI analysis")
     setIsStartingInterview(true)
 
     try {
@@ -242,8 +242,9 @@ export default function EnhancedSummaryPage() {
     }
   }
 
-  // Get chronological work experience from document analyses with better data handling
-  const getChronologicalExperience = () => {
+  // Get work experience from document analyses with better data handling
+  const getWorkExperience = () => {
+    if (typeof window === 'undefined') return [] // SSR safety
     const storedAnalyses = localStorage.getItem("documentAnalyses")
     if (!storedAnalyses) return []
 
@@ -274,14 +275,15 @@ export default function EnhancedSummaryPage() {
         return dateB.getTime() - dateA.getTime()
       })
     } catch (error) {
-      console.error("Error parsing chronological experience:", error)
+      console.error("Error parsing work experience:", error)
       return []
     }
   }
 
   // Get aggregated career statistics
   const getCareerStats = () => {
-    const experiences = getChronologicalExperience()
+    const experiences = getWorkExperience()
+    if (typeof window === 'undefined') return { totalRoles: 0, totalSkills: 0, totalAchievements: 0, industries: [], companies: [], technologies: [], totalExperience: "" } // SSR safety
     const documentAnalyses = localStorage.getItem("documentAnalyses")
 
     let totalSkills = 0
@@ -321,7 +323,7 @@ export default function EnhancedSummaryPage() {
     }
   }
 
-  const chronologicalExperience = getChronologicalExperience()
+  const workExperience = getWorkExperience()
   const careerStats = getCareerStats()
 
   if (!isAuthenticated || !jobData) {
@@ -349,7 +351,7 @@ export default function EnhancedSummaryPage() {
                 </div>
 
                 <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed">
-                  Intelligent Real-Time Assistant with Chronological Experience Integration
+                  Intelligent Real-Time Assistant with Experience Integration
                 </p>
               </div>
 
@@ -364,14 +366,14 @@ export default function EnhancedSummaryPage() {
                     )}
                   </div>
                   <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                    🧠 {isLoading ? "Enhanced Chronological AI Training in Progress..." : "Chronological Career Analysis Complete"}
+                    🧠 {isLoading ? "Enhanced AI Training in Progress..." : "Career Analysis Complete"}
                   </h2>
                 </div>
 
                 <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                   {isLoading
-                    ? "Our AI is analyzing your chronological work experience, career progression, and professional achievements with advanced extraction..."
-                    : "Your complete career timeline has been analyzed. AI is ready to use your real companies, job titles, achievements, and career progression in interview responses."
+                    ? "AI is analyzing your work experience, career progression, and professional achievements..."
+                    : "Your career information has been analyzed. AI is ready to use your real companies, job titles, achievements, and career progression in interview responses."
                   }
                 </p>
 
@@ -379,12 +381,12 @@ export default function EnhancedSummaryPage() {
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Badge variant="secondary" className="gap-1 bg-gray-800 text-white dark:bg-gray-700">
                       <Clock className="w-4 h-4" />
-                      Chronological analysis completed
+                      Analysis completed
                     </Badge>
-                    {chronologicalExperience.length > 0 && (
+                    {workExperience.length > 0 && (
                       <Badge variant="outline" className="gap-1">
                         <Building className="w-4 h-4" />
-                        {chronologicalExperience.length} roles analyzed
+                        {workExperience.length} roles analyzed
                       </Badge>
                     )}
                   </div>
@@ -404,6 +406,11 @@ export default function EnhancedSummaryPage() {
                     </div>
                     <div className="space-y-4">
                       {isLoading ? (
+                        <div className="space-y-4">
+                          <Skeleton className="h-6 w-3/4" />
+                          <Skeleton className="h-20 w-full" />
+                        </div>
+                      ) : (
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
                           <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                             {analysisData?.candidate_profile || `Experienced professional applying for ${jobData.jobTitle} with documented career progression and industry expertise.`}
@@ -429,18 +436,18 @@ export default function EnhancedSummaryPage() {
                   )}
 
                   {/* Chronological Work Experience */}
-                  {!isLoading && chronologicalExperience.length > 0 && (
+                  {!isLoading && workExperience.length > 0 && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">🏢</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Chronological Work Experience</h3>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Work Experience</h3>
                         <Badge variant="outline" className="ml-auto">
-                          {chronologicalExperience.length} roles
+                          {workExperience.length} roles
                         </Badge>
                       </div>
 
                       <div className="space-y-4">
-                        {(showAllExperiences ? chronologicalExperience : chronologicalExperience.slice(0, 3)).map((job, index) => (
+                        {(showAllExperiences ? workExperience : workExperience.slice(0, 3)).map((job, index) => (
                           <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
@@ -556,7 +563,7 @@ export default function EnhancedSummaryPage() {
                           </div>
                         ))}
 
-                        {chronologicalExperience.length > 3 && (
+                        {workExperience.length > 3 && (
                           <div className="text-center">
                             <Button
                               variant="ghost"
@@ -571,7 +578,7 @@ export default function EnhancedSummaryPage() {
                               ) : (
                                 <>
                                   <ChevronDown className="w-4 h-4 mr-2" />
-                                  Show All {chronologicalExperience.length} Roles
+                                  Show All {workExperience.length} Roles
                                 </>
                               )}
                             </Button>
@@ -600,7 +607,7 @@ export default function EnhancedSummaryPage() {
                   )}
 
                   {/* Enhanced Career Statistics */}
-                  {!isLoading && chronologicalExperience.length > 0 && (
+                  {!isLoading && workExperience.length > 0 && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">📊</span>
@@ -684,14 +691,14 @@ export default function EnhancedSummaryPage() {
                   )}
 
                   {/* Chronological Talking Points */}
-                  {!isLoading && analysisData?.chronological_talking_points && analysisData.chronological_talking_points.length > 0 && (
+                  {!isLoading && analysisData?.career_talking_points && analysisData.career_talking_points.length > 0 && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">💬</span>
                         <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Interview Talking Points</h3>
                       </div>
                       <div className="space-y-4">
-                        {analysisData.chronological_talking_points.map((talkingPoint, index) => (
+                        {analysisData.career_talking_points.map((talkingPoint, index) => (
                           <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
                             <div className="flex items-center gap-2 mb-3">
                               <Calendar className="w-4 h-4 text-blue-500" />
@@ -760,7 +767,7 @@ export default function EnhancedSummaryPage() {
                             console.warn("Failed to parse document analyses for display")
                           }
 
-                          const analysis = documentAnalyses[index]
+                          const analysis = documentAnalyses[index] as any
 
                           return (
                             <div key={index} className="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
@@ -895,7 +902,7 @@ export default function EnhancedSummaryPage() {
                     <div className="space-y-3 mb-6">
                       <div className="flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Chronological career analysis completed</span>
+                        <span>Career analysis completed</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4 text-green-600" />
@@ -929,7 +936,7 @@ export default function EnhancedSummaryPage() {
                         </>
                       ) : (
                         <>
-                          Start Chronological Interview
+                          Start Career Interview
                           <ArrowRight className="w-5 h-5" />
                         </>
                       )}
@@ -937,7 +944,7 @@ export default function EnhancedSummaryPage() {
                   </div>
 
                   {/* Career Stats */}
-                  {!isLoading && chronologicalExperience.length > 0 && (
+                  {!isLoading && workExperience.length > 0 && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
                       <div className="space-y-4">
@@ -977,7 +984,7 @@ export default function EnhancedSummaryPage() {
 
                   {/* Enhanced Features */}
                   <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                    <h3 className="text-lg font-semibold mb-4">Chronological Features</h3>
+                    <h3 className="text-lg font-semibold mb-4">Career Features</h3>
                     <div className="space-y-4 text-sm">
                       <div className="flex gap-3">
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
@@ -995,7 +1002,7 @@ export default function EnhancedSummaryPage() {
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
                           3
                         </div>
-                        <p>Chronological experience narrative for interviews</p>
+                        <p>Career experience narrative for interviews</p>
                       </div>
                       <div className="flex gap-3">
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
@@ -1014,7 +1021,7 @@ export default function EnhancedSummaryPage() {
                         <span className="text-3xl font-bold">4.9</span>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-300">
-                        Average rating with chronological career analysis
+                        Average rating with career analysis
                       </p>
                     </div>
                   </div>
@@ -1027,10 +1034,10 @@ export default function EnhancedSummaryPage() {
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-2">
                       <span className="text-lg">🤖</span>
-                      <span className="font-semibold text-yellow-800 dark:text-yellow-200">Enhanced Chronological AI Session Active</span>
+                      <span className="font-semibold text-yellow-800 dark:text-yellow-200">Enhanced AI Session Active</span>
                     </div>
                     <div className="text-sm text-yellow-700 dark:text-yellow-300 font-mono">
-                      Session ID: chronological_{Math.random().toString(36).substr(2, 9)} | {chronologicalExperience.length} roles analyzed | {careerStats.totalExperience || 'Multiple years'} experience
+                      Session ID: ai_{Math.random().toString(36).substr(2, 9)} | {workExperience.length} roles analyzed | {careerStats.totalExperience || 'Multiple years'} experience
                     </div>
                   </div>
                 </div>
@@ -1048,7 +1055,7 @@ export default function EnhancedSummaryPage() {
                     {isStartingInterview ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                        Starting Chronological Interview...
+                        Starting Career Interview...
                       </>
                     ) : (
                       <>
@@ -1066,9 +1073,4 @@ export default function EnhancedSummaryPage() {
       </main>
     </div>
   )
-}="space-y-4" >
-                          <Skeleton className="h-6 w-3/4" />
-                          <Skeleton className="h-20 w-full" />
-                        </div >
-                      ) : (
-  <div className
+}
