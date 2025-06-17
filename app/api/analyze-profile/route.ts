@@ -1,4 +1,4 @@
-// app/api/analyze-profile/route.ts - ENHANCED VERSION WITH CHRONOLOGICAL EXPERIENCE INTEGRATION
+// app/api/analyze-profile/route.ts - ENHANCED VERSION WITH CAREER EXPERIENCE INTEGRATION
 
 import { generateText } from 'ai'
 import { openai } from '@ai-sdk/openai'
@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   try {
     const { jobTitle, jobDescription, uploadedFiles, documentAnalyses, targetLanguage = 'en' } = await req.json()
 
-    console.log("Enhanced chronological profile analysis for:", {
+    console.log("Enhanced career profile analysis for:", {
       jobTitle,
       jobDescription: jobDescription?.length,
       uploadedFiles: uploadedFiles?.length,
@@ -20,14 +20,14 @@ export async function POST(req: NextRequest) {
       throw new Error('OpenAI API key not configured')
     }
 
-    // Build comprehensive context with chronological focus - ALWAYS IN ENGLISH FIRST
+    // Build comprehensive context with career focus - ALWAYS IN ENGLISH FIRST
     let fullContext = `CANDIDATE PROFILE FOR INTERVIEW PREPARATION:
 
 Interview Position: ${jobTitle}
 
 Role Context and Requirements: ${jobDescription}`
 
-    // Add enhanced chronological work experience context
+    // Add enhanced career work experience context
     if (documentAnalyses && documentAnalyses.length > 0) {
       fullContext += `\n\n=== COMPREHENSIVE CANDIDATE BACKGROUND ANALYSIS ===\n`
       fullContext += `Documents analyzed: ${documentAnalyses.length} files\n`
@@ -44,14 +44,14 @@ Technical Skills: ${(analysis.extractedSkills || []).join(', ')}
 Industry Experience: ${(analysis.experienceDetails?.industries || []).join(', ')}
 Functional Areas: ${(analysis.experienceDetails?.functionalAreas || []).join(', ')}
 
-CHRONOLOGICAL WORK EXPERIENCE:
+CAREER WORK EXPERIENCE:
 Total Professional Experience: ${analysis.experienceDetails?.totalYears || 'Not specified'}
 Career Level: ${analysis.experienceDetails?.careerLevel || 'Not specified'}
 `
 
-        // Add detailed chronological work history
+        // Add detailed career work history
         if (analysis.experienceDetails?.workHistory && analysis.experienceDetails.workHistory.length > 0) {
-          fullContext += `\nCHRONOLOGICAL WORK HISTORY (Most Recent First):\n`
+          fullContext += `\nWORK HISTORY (Most Recent First):\n`
 
           analysis.experienceDetails.workHistory.forEach((job: any, jobIndex: number) => {
             fullContext += `
@@ -106,26 +106,26 @@ Portfolio: ${analysis.contactInfo.portfolio || 'Not provided'}
       fullContext += `Note: Documents contain professional background information relevant to the ${jobTitle} position.`
     }
 
-    // Create comprehensive chronological analysis prompt - ALWAYS IN ENGLISH
-    const analysisPrompt = `You are analyzing a candidate's complete professional profile for advanced interview preparation. This candidate will be answering interview questions based on their ACTUAL chronological work experience and documented career history.
+    // Create comprehensive career analysis prompt - ALWAYS IN ENGLISH
+    const analysisPrompt = `You are analyzing a candidate's complete professional profile for advanced interview preparation. This candidate will be answering interview questions based on their ACTUAL career work experience and documented career history.
 
-Based on the interview position, context, and detailed chronological work experience extracted from CV documents, provide a comprehensive analysis that enables an AI to respond accurately as this candidate during interviews.
+Based on the interview position, context, and detailed career work experience extracted from CV documents, provide a comprehensive analysis that enables an AI to respond accurately as this candidate during interviews.
 
 CONTEXT TO ANALYZE:
 ${fullContext}
 
 Create a detailed analysis focusing on:
-1. PROFESSIONAL PROFILE: Comprehensive overview based on actual chronological work experience
+1. PROFESSIONAL PROFILE: Comprehensive overview based on actual career work experience
 2. CAREER PROGRESSION: Analysis of seniority growth and industry expertise over time
-3. EXPERIENCE HIGHLIGHTS: Concrete examples from their actual chronological work history
+3. EXPERIENCE HIGHLIGHTS: Concrete examples from their actual career work history
 4. TECHNICAL EVOLUTION: How their technical skills developed through different roles
 5. INDUSTRY EXPERTISE: Deep domain knowledge gained through career progression
 6. LEADERSHIP JOURNEY: Evidence of growing responsibilities and team management
-7. ROLE ALIGNMENT: How their chronological experience aligns with target position
+7. ROLE ALIGNMENT: How their career experience aligns with target position
 8. INTERVIEW STRATEGY: How to leverage their actual career progression in responses
 
 CRITICAL INSTRUCTIONS:
-- Use ONLY actual information extracted from the chronological work experience
+- Use ONLY actual information extracted from the career work experience
 - Reference specific companies, job titles, years, and achievements from their CV
 - Build responses around their REAL career progression and industry expertise
 - Make recommendations based on their actual professional development path
@@ -134,18 +134,18 @@ CRITICAL INSTRUCTIONS:
 
 Respond with detailed JSON in this exact format:
 {
-  "candidate_profile": "Comprehensive professional overview based on actual chronological work experience and career progression",
+  "candidate_profile": "Comprehensive professional overview based on actual career work experience and career progression",
   "career_progression_analysis": "Detailed analysis of how the candidate's career has evolved over time, including seniority growth and industry expertise development",
   "key_strengths": ["Specific strength 1 from actual work history", "Specific strength 2 from career progression", "Specific strength 3 from industry expertise", "Specific strength 4 from technical evolution"],
-  "experience_highlights": ["Specific example 1 from actual chronological work history with company and timeframe", "Specific example 2 from documented career progression", "Specific example 3 from real professional achievements"],
+  "experience_highlights": ["Specific example 1 from actual career work history with company and timeframe", "Specific example 2 from documented career progression", "Specific example 3 from real professional achievements"],
   "technical_competencies": ["Actual skill 1 from CV with years of experience", "Actual skill 2 from multiple roles", "Actual skill 3 from career progression", "Actual skill 4 from latest positions", "Actual skill 5 from documented projects"],
   "industry_expertise": ["Domain knowledge 1 from career history", "Sector expertise 2 from work progression", "Industry insight 3 from multiple roles"],
   "leadership_and_management": "Analysis of leadership roles and team management experience based on actual job titles and responsibilities",
   "potential_challenges": ["Realistic challenge 1 based on role gap analysis from actual experience", "Realistic challenge 2 based on career progression gaps"],
-  "interview_strategy": "Detailed strategy based on actual chronological career progression and how to present the professional journey for maximum impact",
-  "role_fit_analysis": "Analysis of how actual chronological work experience and career progression matches target role requirements",
+  "interview_strategy": "Detailed strategy based on actual career progression and how to present the professional journey for maximum impact",
+  "role_fit_analysis": "Analysis of how actual career work experience and career progression matches target role requirements",
   "preparation_recommendations": ["Specific tip 1 based on real career progression", "Specific tip 2 based on actual work history", "Specific tip 3 based on documented achievements"],
-  "chronological_talking_points": [
+  "career_talking_points": [
     {
       "period": "Most recent role period",
       "company": "Actual company name",
@@ -172,7 +172,7 @@ Respond ONLY with valid JSON, no additional text or markdown.`
       maxTokens: 3000, // Increased for comprehensive chronological analysis
     })
 
-    console.log("Enhanced chronological AI Analysis completed")
+    console.log("Enhanced career AI Analysis completed")
 
     // Clean the response
     let cleanedText = text.trim()
@@ -196,13 +196,13 @@ Respond ONLY with valid JSON, no additional text or markdown.`
     })
 
   } catch (error) {
-    console.error('Error analyzing chronological profile:', error)
+    console.error('Error analyzing career profile:', error)
 
-    // Generate AI-powered fallback with chronological focus
+    // Generate AI-powered fallback with career focus
     const requestData = await req.json().catch(() => ({}))
     const fallbackJobTitle = requestData.jobTitle || 'Professional Position'
     const fallbackTargetLanguage = requestData.targetLanguage || 'en'
-    const fallbackResponse = await generateChronologicalFallbackAnalysis(fallbackJobTitle, fallbackTargetLanguage, requestData.documentAnalyses)
+    const fallbackResponse = await generateCareerFallbackAnalysis(fallbackJobTitle, fallbackTargetLanguage, requestData.documentAnalyses)
 
     return NextResponse.json({
       success: false,
@@ -212,8 +212,8 @@ Respond ONLY with valid JSON, no additional text or markdown.`
   }
 }
 
-// Function to generate AI-powered fallback analysis with chronological focus
-async function generateChronologicalFallbackAnalysis(jobTitle: string, targetLanguage: string, documentAnalyses: any[] = []) {
+// Function to generate AI-powered fallback analysis with career focus
+async function generateCareerFallbackAnalysis(jobTitle: string, targetLanguage: string, documentAnalyses: any[] = []) {
   try {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error('No API key for fallback')
@@ -296,9 +296,9 @@ Make it professional and realistic for a ${jobTitle} position. All content in En
     return fallbackAnalysis
 
   } catch (fallbackError) {
-    console.error('Chronological fallback generation failed:', fallbackError)
+    console.error('Career fallback generation failed:', fallbackError)
 
-    // Last resort minimal structure with chronological focus
+    // Last resort minimal structure with career focus
     const minimalAnalysis = {
       candidate_profile: `Professional candidate applying for ${jobTitle} position with relevant career progression and documented experience`,
       career_progression_analysis: `Professional development path showing growth in technical competencies and industry expertise relevant to ${jobTitle} role`,
