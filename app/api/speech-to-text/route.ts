@@ -37,7 +37,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OpenAI API key not configured')
+      console.error('OpenAI API key not configured')
+      return NextResponse.json({
+        success: false,
+        error: 'Speech recognition service temporarily unavailable. Please check configuration.',
+        text: ""
+      }, { status: 503 })
     }
 
     // Create a properly named file for OpenAI

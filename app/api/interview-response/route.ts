@@ -11,7 +11,41 @@ export async function POST(req: NextRequest) {
     console.log("Generating enhanced chronological interview response for:", { question, jobTitle, language })
 
     if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OpenAI API key not configured')
+      console.error('OpenAI API key not configured')
+      // Return a graceful fallback response
+      const encoder = new TextEncoder()
+      const fallbackText = language === 'it' 
+        ? "Mi dispiace, il servizio AI non è attualmente disponibile. Grazie per la domanda."
+        : "I apologize, the AI service is currently unavailable. Thank you for your question."
+      
+      const stream = new ReadableStream({
+        start(controller) {
+          const metadata = { type: 'metadata', question }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`))
+          
+          const words = fallbackText.split(' ')
+          words.forEach((word, index) => {
+            const chunk = {
+              type: 'delta',
+              content: index === 0 ? word : ` ${word}`
+            }
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
+          })
+          
+          const completion = { type: 'done' }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(completion)}\n\n`))
+          controller.close()
+        }
+      })
+      
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Transfer-Encoding': 'chunked',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        }
+      })
     }
 
     const originalQuestion = question.trim()
