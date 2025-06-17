@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -16,7 +16,19 @@ import {
   ArrowRight,
   Clock,
   Star,
-  Loader2
+  Loader2,
+  Building,
+  Calendar,
+  TrendingUp,
+  Award,
+  MapPin,
+  Mail,
+  Phone,
+  Linkedin,
+  Globe,
+  Briefcase,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 import Header from "@/components/header"
 
@@ -24,20 +36,30 @@ interface JobData {
   jobTitle: string
   jobDescription: string
   uploadedFiles: string[]
-  // NEW: Include document analyses
   documentAnalyses?: any[]
 }
 
 interface AnalysisData {
-  // New comprehensive analysis fields from upgraded API
+  // Enhanced analysis fields with chronological focus
   candidate_profile?: string
+  career_progression_analysis?: string
   key_strengths?: string[]
   experience_highlights?: string[]
   technical_competencies?: string[]
+  industry_expertise?: string[]
+  leadership_and_management?: string
   potential_challenges?: string[]
   interview_strategy?: string
   role_fit_analysis?: string
   preparation_recommendations?: string[]
+  chronological_talking_points?: Array<{
+    period: string
+    company: string
+    position: string
+    key_talking_points: string[]
+    interview_relevance: string
+  }>
+  career_narrative?: string
 
   // Legacy fields for backwards compatibility
   keySkills: string[]
@@ -48,15 +70,17 @@ interface AnalysisData {
   profileInsights: string[]
 }
 
-export default function SummaryPage() {
+export default function EnhancedSummaryPage() {
   const [jobData, setJobData] = useState<JobData | null>(null)
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isStartingInterview, setIsStartingInterview] = useState(false)
+  const [expandedExperience, setExpandedExperience] = useState<number | null>(null)
+  const [showAllExperiences, setShowAllExperiences] = useState(false)
   const router = useRouter()
 
-  console.log("Summary page rendered, jobData:", jobData, "analysisData:", analysisData)
+  console.log("Enhanced Summary page rendered, jobData:", jobData, "analysisData:", analysisData)
 
   useEffect(() => {
     const auth = localStorage.getItem("isAuthenticated")
@@ -73,26 +97,24 @@ export default function SummaryPage() {
     const parsedJobData = JSON.parse(data)
     setJobData(parsedJobData)
 
-    // Call enhanced AI analysis API
-    analyzeProfile(parsedJobData)
+    // Call enhanced AI analysis API with chronological focus
+    analyzeChronologicalProfile(parsedJobData)
   }, [router])
 
-  // UPDATED: Enhanced profile analysis with document data
-  const analyzeProfile = async (jobData: JobData) => {
+  const analyzeChronologicalProfile = async (jobData: JobData) => {
     try {
-      console.log("Starting enhanced AI profile analysis with document data...")
+      console.log("Starting enhanced chronological AI profile analysis...")
       setIsLoading(true)
 
-      // Get stored document analyses
+      // Get stored document analyses with chronological data
       let documentAnalyses = jobData.documentAnalyses || []
 
-      // If not in jobData, try to get from localStorage
       if (!documentAnalyses || documentAnalyses.length === 0) {
         const storedAnalyses = localStorage.getItem("documentAnalyses")
         if (storedAnalyses) {
           try {
             documentAnalyses = JSON.parse(storedAnalyses)
-            console.log("Retrieved document analyses from localStorage:", documentAnalyses.length)
+            console.log("Retrieved chronological document analyses:", documentAnalyses.length)
           } catch (error) {
             console.warn("Failed to parse stored document analyses:", error)
             documentAnalyses = []
@@ -108,74 +130,94 @@ export default function SummaryPage() {
         body: JSON.stringify({
           ...jobData,
           documentAnalyses: documentAnalyses,
-          targetLanguage: 'en' // Start with English, translate if needed
+          targetLanguage: 'en'
         }),
       })
 
       const result = await response.json()
-      console.log("Enhanced AI Analysis result:", result)
+      console.log("Enhanced chronological AI Analysis result:", result)
 
       if (result.success) {
         setAnalysisData(result.analysis)
       } else {
-        // Use fallback data if API fails
         setAnalysisData(result.analysis)
       }
     } catch (error) {
-      console.error("Error in enhanced profile analysis:", error)
-      // Enhanced fallback analysis
+      console.error("Error in enhanced chronological profile analysis:", error)
+      // Enhanced fallback with chronological structure
       setAnalysisData({
-        candidate_profile: `Professional candidate applying for ${jobData.jobTitle} with relevant background extracted from uploaded documents and profile information.`,
+        candidate_profile: `Professional candidate applying for ${jobData.jobTitle} with documented career progression and relevant industry experience.`,
+        career_progression_analysis: `Career trajectory shows consistent professional growth with increasing responsibilities and technical expertise development over time.`,
         key_strengths: [
-          "Technical competency demonstrated through document analysis",
-          "Professional communication and collaboration skills",
-          "Adaptability and continuous learning mindset",
-          "Problem-solving capabilities with practical experience"
+          "Proven career progression with documented professional growth",
+          "Technical competencies developed through real work experience",
+          "Industry expertise gained through progressive roles",
+          "Professional communication and collaboration skills"
         ],
         experience_highlights: [
-          "Professional experience documented in uploaded materials",
-          "Technical skills and competencies verified through document analysis",
+          "Professional experience documented through career progression",
+          "Technical skills developed and applied in real work environments",
           "Track record of professional development and achievement"
         ],
         technical_competencies: [
-          "Core technical skills for the target role",
+          "Technical skills relevant to target role",
           "Industry-standard tools and methodologies",
-          "Professional software development practices",
+          "Professional development practices",
           "Communication and collaboration technologies",
-          "Continuous learning and skill development"
+          "Continuous learning and adaptation capabilities"
         ],
+        industry_expertise: [
+          "Domain knowledge from professional experience",
+          "Sector understanding through career progression",
+          "Industry best practices and standards awareness"
+        ],
+        leadership_and_management: "Professional experience demonstrates growth in responsibility and evidence of team collaboration and project coordination capabilities.",
         potential_challenges: [
-          "Prepare specific examples demonstrating technical competencies",
-          "Research company-specific technologies and practices"
+          "Prepare specific examples demonstrating technical competencies from work history",
+          "Research company-specific technologies and current industry practices"
         ],
-        interview_strategy: "Focus on highlighting documented technical skills and experience. Use specific examples from professional background to demonstrate capabilities and alignment with role requirements.",
-        role_fit_analysis: `Strong alignment between documented background and ${jobData.jobTitle} position requirements. Professional experience and technical competencies show good potential for success.`,
+        interview_strategy: "Focus on highlighting documented career progression and professional achievements. Use specific examples from work history to demonstrate capabilities and growth trajectory.",
+        role_fit_analysis: `Strong alignment between documented career progression and ${jobData.jobTitle} position requirements. Professional experience trajectory shows excellent potential for success.`,
         preparation_recommendations: [
-          "Review specific examples from documented experience",
-          "Prepare to discuss technical competencies in detail",
-          "Research company technology stack and practices"
+          "Review specific achievements from each role in career progression",
+          "Prepare to discuss technical competencies developed over time",
+          "Research target company's technology stack and industry position"
         ],
-        keySkills: ["Technical Competency", "Professional Communication", "Problem Solving", "Adaptability", "Collaboration", "Continuous Learning"],
+        chronological_talking_points: [
+          {
+            period: "Recent Professional Experience",
+            company: "Current/Recent Organization",
+            position: "Current/Recent Role",
+            key_talking_points: [
+              "Technical achievements and contributions",
+              "Professional growth and responsibility expansion",
+              "Team collaboration and project success"
+            ],
+            interview_relevance: "Demonstrates current capabilities and readiness for target role"
+          }
+        ],
+        career_narrative: `Professional journey demonstrates consistent growth and skill development leading naturally to ${jobData.jobTitle} role. Career progression shows both technical advancement and professional maturity.`,
+        keySkills: ["Technical Competency", "Professional Communication", "Problem Solving", "Career Progression", "Industry Knowledge", "Continuous Learning"],
         interviewAreas: [
-          "Technical skills relevant to position",
-          "Professional experience and projects",
-          "Team collaboration and communication",
+          "Professional experience and career trajectory",
+          "Technical skills development through work history",
+          "Team collaboration and professional growth",
           "Problem-solving approach and methodology",
-          "Career development and learning goals"
+          "Industry knowledge and career development goals"
         ],
         strengths: [
-          "Documented professional background",
-          "Verified technical competencies",
+          "Documented professional career progression",
+          "Technical competencies verified through work experience",
           "Professional development track record",
-          "Strong foundation for role success"
+          "Strong foundation for continued growth"
         ],
         complexity: "Medium",
-        matchScore: 78,
+        matchScore: 80,
         profileInsights: [
-          "Professional candidate with documented technical background",
-          "Good alignment between verified skills and role requirements",
-          "Strong potential for success based on documented competencies",
-          "Professional development mindset evident from background"
+          "Professional candidate with verified career progression",
+          "Good alignment between work history and role requirements",
+          "Strong potential for success based on professional trajectory",
+          "Career development mindset evident from progression pattern"
         ]
       })
     } finally {
@@ -184,19 +226,15 @@ export default function SummaryPage() {
   }
 
   const handleStartInterview = async () => {
-    console.log("Starting interview with enhanced AI analysis")
+    console.log("Starting interview with enhanced chronological AI analysis")
     setIsStartingInterview(true)
 
     try {
-      // Store analysis data for interview page
       if (analysisData) {
         localStorage.setItem("analysisData", JSON.stringify(analysisData))
       }
 
-      // Add a small delay to show loading animation
       await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // Navigate directly to interview page
       router.push("/interview")
     } catch (error) {
       console.error("Error starting interview:", error)
@@ -204,25 +242,91 @@ export default function SummaryPage() {
     }
   }
 
-  if (!isAuthenticated || !jobData) {
-    return null
-  }
+  // Get chronological work experience from document analyses with better data handling
+  const getChronologicalExperience = () => {
+    const storedAnalyses = localStorage.getItem("documentAnalyses")
+    if (!storedAnalyses) return []
 
-  const getJobHighlights = () => {
-    const description = jobData.jobDescription
-    const wordCount = description.split(' ').length
-    const hasExperience = description.toLowerCase().includes('esperienza') || description.toLowerCase().includes('experience')
-    const hasSkills = description.toLowerCase().includes('competenze') || description.toLowerCase().includes('skills')
+    try {
+      const documentAnalyses = JSON.parse(storedAnalyses)
+      const allWorkHistory: any[] = []
 
-    return {
-      wordCount,
-      hasExperience,
-      hasSkills,
-      complexity: analysisData?.complexity || (wordCount > 50 ? 'High' : wordCount > 20 ? 'Medium' : 'Basic')
+      documentAnalyses.forEach((analysis: any) => {
+        if (analysis.experienceDetails?.workHistory) {
+          allWorkHistory.push(...analysis.experienceDetails.workHistory)
+        }
+      })
+
+      // Sort by start date (most recent first) with better date parsing
+      return allWorkHistory.sort((a, b) => {
+        const parseDate = (dateStr: string) => {
+          if (!dateStr || dateStr === 'Present') return new Date()
+          // Handle MM/YYYY format
+          const parts = dateStr.split('/')
+          if (parts.length === 2) {
+            return new Date(parseInt(parts[1]), parseInt(parts[0]) - 1)
+          }
+          return new Date(dateStr)
+        }
+
+        const dateA = parseDate(a.startDate || '1900-01-01')
+        const dateB = parseDate(b.startDate || '1900-01-01')
+        return dateB.getTime() - dateA.getTime()
+      })
+    } catch (error) {
+      console.error("Error parsing chronological experience:", error)
+      return []
     }
   }
 
-  const jobHighlights = getJobHighlights()
+  // Get aggregated career statistics
+  const getCareerStats = () => {
+    const experiences = getChronologicalExperience()
+    const documentAnalyses = localStorage.getItem("documentAnalyses")
+
+    let totalSkills = 0
+    let totalAchievements = 0
+    let industries = new Set<string>()
+    let companies = new Set<string>()
+    let technologies = new Set<string>()
+    let totalExperience = ""
+
+    if (documentAnalyses) {
+      try {
+        const analyses = JSON.parse(documentAnalyses)
+        analyses.forEach((analysis: any) => {
+          if (analysis.extractedSkills) totalSkills += analysis.extractedSkills.length
+          if (analysis.keyAchievements) totalAchievements += analysis.keyAchievements.length
+          if (analysis.experienceDetails?.totalYears) totalExperience = analysis.experienceDetails.totalYears
+        })
+      } catch (error) {
+        console.error("Error parsing document analyses for stats:", error)
+      }
+    }
+
+    experiences.forEach(exp => {
+      if (exp.industry) industries.add(exp.industry)
+      if (exp.company) companies.add(exp.company)
+      if (exp.technologies) exp.technologies.forEach((tech: string) => technologies.add(tech))
+    })
+
+    return {
+      totalRoles: experiences.length,
+      totalSkills: Math.max(totalSkills, technologies.size),
+      totalAchievements,
+      industries: Array.from(industries),
+      companies: Array.from(companies),
+      technologies: Array.from(technologies),
+      totalExperience
+    }
+  }
+
+  const chronologicalExperience = getChronologicalExperience()
+  const careerStats = getCareerStats()
+
+  if (!isAuthenticated || !jobData) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#667eea] via-[#764ba2] to-[#667eea] dark:from-purple-900 dark:via-blue-900 dark:to-indigo-900">
@@ -231,7 +335,6 @@ export default function SummaryPage() {
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-6xl mx-auto">
 
-          {/* Main Card Container */}
           <Card className="bg-white dark:bg-gray-800/95 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-white/20 dark:border-gray-700/30">
             <CardContent className="p-8">
 
@@ -242,11 +345,11 @@ export default function SummaryPage() {
                 </h1>
 
                 <div className="inline-flex items-center bg-red-500 text-white px-4 py-2 rounded-full text-sm font-medium">
-                  🤖 AI Responds As You Based on Your Background
+                  🤖 AI Responds As You Using Your Real Career History
                 </div>
 
                 <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed">
-                  Intelligent Real-Time Prompter
+                  Intelligent Real-Time Assistant with Chronological Experience Integration
                 </p>
               </div>
 
@@ -261,66 +364,232 @@ export default function SummaryPage() {
                     )}
                   </div>
                   <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                    🧠 {isLoading ? "Enhanced AI Training in Progress..." : "Enhanced AI Analysis Complete"}
+                    🧠 {isLoading ? "Enhanced Chronological AI Training in Progress..." : "Chronological Career Analysis Complete"}
                   </h2>
                 </div>
 
                 <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                   {isLoading
-                    ? "Our AI is analyzing your profile, documents, and job description with advanced extraction..."
-                    : "Our AI has analyzed your data and documents using advanced extraction. Your CV skills, experience, and achievements are now ready for interview responses."
+                    ? "Our AI is analyzing your chronological work experience, career progression, and professional achievements with advanced extraction..."
+                    : "Your complete career timeline has been analyzed. AI is ready to use your real companies, job titles, achievements, and career progression in interview responses."
                   }
                 </p>
 
                 {!isLoading && (
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-wrap gap-2">
                     <Badge variant="secondary" className="gap-1 bg-gray-800 text-white dark:bg-gray-700">
                       <Clock className="w-4 h-4" />
-                      Enhanced analysis completed
+                      Chronological analysis completed
                     </Badge>
+                    {chronologicalExperience.length > 0 && (
+                      <Badge variant="outline" className="gap-1">
+                        <Building className="w-4 h-4" />
+                        {chronologicalExperience.length} roles analyzed
+                      </Badge>
+                    )}
                   </div>
                 )}
               </div>
 
               <div className="grid lg:grid-cols-3 gap-8">
 
-                {/* Left Column - AI Analysis Sections */}
+                {/* Left Column - Enhanced Analysis Sections */}
                 <div className="lg:col-span-2 space-y-6">
 
-                  {/* Candidate Profile */}
+                  {/* Professional Profile */}
                   <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-lg">👤</span>
-                      <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Enhanced Candidate Profile</h3>
+                      <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Professional Profile</h3>
                     </div>
                     <div className="space-y-4">
                       {isLoading ? (
-                        <div className="space-y-4">
-                          <Skeleton className="h-6 w-3/4" />
-                          <Skeleton className="h-20 w-full" />
-                          <Skeleton className="h-16 w-full" />
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
+                          <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                            {analysisData?.candidate_profile || `Experienced professional applying for ${jobData.jobTitle} with documented career progression and industry expertise.`}
+                          </p>
                         </div>
-                      ) : (
-                        <>
-                          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
-                            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                              {analysisData?.candidate_profile || analysisData?.profileInsights?.[0] || `Experienced professional applying for ${jobData.jobTitle} with a strong background in relevant technologies and skills.`}
-                            </p>
-                          </div>
-                        </>
                       )}
                     </div>
                   </div>
+
+                  {/* Career Progression Analysis */}
+                  {!isLoading && analysisData?.career_progression_analysis && (
+                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-lg">📈</span>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Career Progression Analysis</h3>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
+                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                          {analysisData.career_progression_analysis}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chronological Work Experience */}
+                  {!isLoading && chronologicalExperience.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-lg">🏢</span>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Chronological Work Experience</h3>
+                        <Badge variant="outline" className="ml-auto">
+                          {chronologicalExperience.length} roles
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-4">
+                        {(showAllExperiences ? chronologicalExperience : chronologicalExperience.slice(0, 3)).map((job, index) => (
+                          <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-gray-900 dark:text-gray-100">
+                                  {job.position}
+                                </h4>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Building className="w-4 h-4 text-gray-500" />
+                                  <span className="text-gray-700 dark:text-gray-300 font-medium">
+                                    {job.company}
+                                  </span>
+                                  {job.industry && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {job.industry}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right text-sm text-gray-500 dark:text-gray-400">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-4 h-4" />
+                                  <span>{job.startDate} - {job.endDate}</span>
+                                </div>
+                                {job.duration && (
+                                  <div className="mt-1 text-xs">
+                                    {job.duration}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Responsibilities */}
+                            {job.responsibilities && job.responsibilities.length > 0 && (
+                              <div className="mb-3">
+                                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Key Responsibilities:
+                                </div>
+                                <div className="space-y-1">
+                                  {job.responsibilities.slice(0, expandedExperience === index ? undefined : 2).map((resp: string, respIndex: number) => (
+                                    <div key={respIndex} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                      <span className="text-blue-500 mt-1">•</span>
+                                      <span>{resp}</span>
+                                    </div>
+                                  ))}
+                                  {job.responsibilities.length > 2 && expandedExperience !== index && (
+                                    <button
+                                      onClick={() => setExpandedExperience(index)}
+                                      className="text-blue-600 hover:text-blue-700 text-sm font-medium ml-3"
+                                    >
+                                      + {job.responsibilities.length - 2} more
+                                    </button>
+                                  )}
+                                  {expandedExperience === index && job.responsibilities.length > 2 && (
+                                    <button
+                                      onClick={() => setExpandedExperience(null)}
+                                      className="text-blue-600 hover:text-blue-700 text-sm font-medium ml-3"
+                                    >
+                                      Show less
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Technologies */}
+                            {job.technologies && job.technologies.length > 0 && (
+                              <div className="mb-3">
+                                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Technologies Used:
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {job.technologies.map((tech: string, techIndex: number) => (
+                                    <Badge key={techIndex} variant="secondary" className="text-xs">
+                                      {tech}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Achievements */}
+                            {job.achievements && job.achievements.length > 0 && (
+                              <div>
+                                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Key Achievements:
+                                </div>
+                                <div className="space-y-1">
+                                  {job.achievements.map((achievement: string, achIndex: number) => (
+                                    <div key={achIndex} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                      <Award className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                                      <span>{achievement}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Company Size and Industry */}
+                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                              {job.companySize && (
+                                <div className="flex items-center gap-1">
+                                  <Users className="w-3 h-3" />
+                                  <span>{job.companySize}</span>
+                                </div>
+                              )}
+                              {job.industry && (
+                                <div className="flex items-center gap-1">
+                                  <Target className="w-3 h-3" />
+                                  <span>{job.industry}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {chronologicalExperience.length > 3 && (
+                          <div className="text-center">
+                            <Button
+                              variant="ghost"
+                              onClick={() => setShowAllExperiences(!showAllExperiences)}
+                              className="text-sm"
+                            >
+                              {showAllExperiences ? (
+                                <>
+                                  <ChevronUp className="w-4 h-4 mr-2" />
+                                  Show Less
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-4 h-4 mr-2" />
+                                  Show All {chronologicalExperience.length} Roles
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Key Strengths */}
                   {!isLoading && (analysisData?.key_strengths || analysisData?.keySkills) && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">💪</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Key Strengths from Analysis</h3>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Key Strengths from Career Analysis</h3>
                       </div>
                       <div className="space-y-3">
-                        {(analysisData.key_strengths || analysisData.keySkills || []).slice(0, 4).map((strength, index) => (
+                        {(analysisData.key_strengths || analysisData.keySkills || []).map((strength, index) => (
                           <div key={index} className="flex items-center gap-2">
                             <span className="text-green-500">✓</span>
                             <span className="text-gray-700 dark:text-gray-300">{strength}</span>
@@ -330,53 +599,158 @@ export default function SummaryPage() {
                     </div>
                   )}
 
-                  {/* Experience Highlights */}
-                  {!isLoading && (analysisData?.experience_highlights || analysisData?.profileInsights) && (
+                  {/* Enhanced Career Statistics */}
+                  {!isLoading && chronologicalExperience.length > 0 && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">💼</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Experience Highlights</h3>
+                        <span className="text-lg">📊</span>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Career Statistics</h3>
                       </div>
-                      <div className="space-y-3">
-                        {(analysisData.experience_highlights || analysisData.profileInsights || []).slice(0, 3).map((highlight, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span className="text-gray-700 dark:text-gray-300">{highlight}</span>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <div className="font-bold text-2xl text-blue-800 dark:text-blue-200">
+                            {careerStats.totalRoles}
+                          </div>
+                          <div className="text-sm text-blue-600 dark:text-blue-400">Professional Roles</div>
+                        </div>
+
+                        <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                          <div className="font-bold text-2xl text-green-800 dark:text-green-200">
+                            {careerStats.companies.length}
+                          </div>
+                          <div className="text-sm text-green-600 dark:text-green-400">Companies</div>
+                        </div>
+
+                        <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                          <div className="font-bold text-2xl text-purple-800 dark:text-purple-200">
+                            {careerStats.totalSkills}
+                          </div>
+                          <div className="text-sm text-purple-600 dark:text-purple-400">Skills & Technologies</div>
+                        </div>
+
+                        <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                          <div className="font-bold text-2xl text-yellow-800 dark:text-yellow-200">
+                            {careerStats.industries.length}
+                          </div>
+                          <div className="text-sm text-yellow-600 dark:text-yellow-400">Industries</div>
+                        </div>
+                      </div>
+
+                      {/* Industry and Technology Highlights */}
+                      {careerStats.industries.length > 0 && (
+                        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                          <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+                            Industry Experience:
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {careerStats.industries.slice(0, 6).map((industry, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {industry}
+                              </Badge>
+                            ))}
+                            {careerStats.industries.length > 6 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{careerStats.industries.length - 6} more
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {careerStats.totalExperience && (
+                        <div className="mt-3 text-center">
+                          <Badge className="bg-blue-600 text-white">
+                            Total Experience: {careerStats.totalExperience}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Leadership and Management */}
+                  {!isLoading && analysisData?.leadership_and_management && (
+                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-lg">👥</span>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Leadership & Management Experience</h3>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
+                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                          {analysisData.leadership_and_management}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chronological Talking Points */}
+                  {!isLoading && analysisData?.chronological_talking_points && analysisData.chronological_talking_points.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-lg">💬</span>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Interview Talking Points</h3>
+                      </div>
+                      <div className="space-y-4">
+                        {analysisData.chronological_talking_points.map((talkingPoint, index) => (
+                          <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Calendar className="w-4 h-4 text-blue-500" />
+                              <span className="font-medium text-gray-900 dark:text-gray-100">
+                                {talkingPoint.position} at {talkingPoint.company}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {talkingPoint.period}
+                              </Badge>
+                            </div>
+
+                            <div className="space-y-2 mb-3">
+                              {talkingPoint.key_talking_points.map((point, pointIndex) => (
+                                <div key={pointIndex} className="flex items-start gap-2 text-sm">
+                                  <span className="text-green-500 mt-1">•</span>
+                                  <span className="text-gray-700 dark:text-gray-300">{point}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                              <div className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
+                                Interview Relevance:
+                              </div>
+                              <div className="text-sm text-blue-700 dark:text-blue-300">
+                                {talkingPoint.interview_relevance}
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Technical Competencies */}
-                  {!isLoading && (analysisData?.technical_competencies || analysisData?.keySkills) && (
+                  {/* Career Narrative */}
+                  {!isLoading && analysisData?.career_narrative && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">💻</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Technical Competencies Extracted</h3>
+                        <span className="text-lg">📖</span>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Career Narrative</h3>
                       </div>
-                      <div className="space-y-3">
-                        {(analysisData.technical_competencies || analysisData.keySkills || []).map((skill, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span className="text-gray-700 dark:text-gray-300">{skill}</span>
-                          </div>
-                        ))}
+                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
+                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                          {analysisData.career_narrative}
+                        </p>
                       </div>
                     </div>
                   )}
 
-                  {/* ENHANCED: Documents Analysis Summary with extracted data */}
+                  {/* Enhanced Documents Analysis Summary */}
                   {jobData.uploadedFiles.length > 0 && !isLoading && (
                     <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-700">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">📄</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Enhanced Documents Analysis</h3>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Enhanced Document Analysis Summary</h3>
                       </div>
 
                       <div className="space-y-4">
                         {jobData.uploadedFiles.map((fileName, index) => {
-                          // Get corresponding analysis if available
                           const storedAnalyses = localStorage.getItem("documentAnalyses")
                           let documentAnalyses = []
 
@@ -392,126 +766,93 @@ export default function SummaryPage() {
                             <div key={index} className="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
                               <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-lg">📄</span>
+                                  <FileText className="w-5 h-5 text-blue-500" />
                                   <span className="font-medium text-gray-900 dark:text-gray-100">{fileName}</span>
                                 </div>
-                                <Badge className={`${analysis?.documentType === 'cv' ? 'bg-green-500' :
-                                  analysis?.documentType === 'cover_letter' ? 'bg-blue-500' :
-                                    analysis?.documentType === 'job_description' ? 'bg-purple-500' :
-                                      'bg-gray-500'} text-white`}>
-                                  {analysis?.documentType || 'document'}
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  <Badge className="bg-green-500 text-white text-xs">
+                                    {analysis?.documentType || 'document'}
+                                  </Badge>
+                                  {analysis?.experienceDetails?.totalYears && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {analysis.experienceDetails.totalYears}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
 
-                              {analysis ? (
+                              {analysis && (
                                 <div className="space-y-3">
-                                  <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-l-4 border-green-500">
-                                    <div className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
-                                      📝 AI Analysis Summary:
-                                    </div>
-                                    <p className="text-gray-700 dark:text-gray-300 text-sm">
-                                      {analysis.summary}
-                                    </p>
-                                  </div>
-
-                                  {/* Enhanced: Show extracted skills */}
-                                  {analysis.extractedSkills && analysis.extractedSkills.length > 0 && (
-                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                                      <div className="font-semibold text-blue-800 dark:text-blue-200 mb-2 text-sm">
-                                        💼 Extracted Skills:
-                                      </div>
-                                      <div className="flex flex-wrap gap-1">
-                                        {analysis.extractedSkills.slice(0, 6).map((skill: string, skillIndex: number) => (
-                                          <Badge key={skillIndex} variant="outline" className="text-xs">
-                                            {skill}
-                                          </Badge>
-                                        ))}
-                                        {analysis.extractedSkills.length > 6 && (
-                                          <Badge variant="outline" className="text-xs">
-                                            +{analysis.extractedSkills.length - 6} more
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Enhanced: Show experience details */}
-                                  {analysis.experienceDetails && (
-                                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border-l-4 border-purple-500">
-                                      <div className="font-semibold text-purple-800 dark:text-purple-200 mb-1 text-sm">
-                                        🏢 Experience Details:
-                                      </div>
-                                      <div className="text-sm text-purple-700 dark:text-purple-300 space-y-1">
-                                        {analysis.experienceDetails.totalYears && (
-                                          <div>• {analysis.experienceDetails.totalYears}</div>
-                                        )}
-                                        {analysis.experienceDetails.industries && analysis.experienceDetails.industries.length > 0 && (
-                                          <div>• Industries: {analysis.experienceDetails.industries.join(', ')}</div>
-                                        )}
-                                        {analysis.experienceDetails.companies && analysis.experienceDetails.companies.length > 0 && (
-                                          <div>• Companies: {analysis.experienceDetails.companies.join(', ')}</div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Enhanced: Show key achievements */}
-                                  {analysis.keyAchievements && analysis.keyAchievements.length > 0 && (
-                                    <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border-l-4 border-yellow-500">
-                                      <div className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2 text-sm">
-                                        🏆 Key Achievements:
-                                      </div>
-                                      <div className="space-y-1">
-                                        {analysis.keyAchievements.slice(0, 3).map((achievement: string, achIndex: number) => (
-                                          <div key={achIndex} className="flex items-start gap-2 text-sm">
-                                            <span className="text-yellow-600 mt-0.5">•</span>
-                                            <span className="text-yellow-700 dark:text-yellow-300">{achievement}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Enhanced: Show education if available */}
-                                  {analysis.education && (analysis.education.degrees?.length > 0 || analysis.education.certifications?.length > 0) && (
-                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border-l-4 border-indigo-500">
-                                      <div className="font-semibold text-indigo-800 dark:text-indigo-200 mb-2 text-sm">
-                                        🎓 Education & Certifications:
-                                      </div>
-                                      <div className="text-sm text-indigo-700 dark:text-indigo-300 space-y-1">
-                                        {analysis.education.degrees && analysis.education.degrees.length > 0 && (
-                                          <div>• Degrees: {analysis.education.degrees.join(', ')}</div>
-                                        )}
-                                        {analysis.education.certifications && analysis.education.certifications.length > 0 && (
-                                          <div>• Certifications: {analysis.education.certifications.join(', ')}</div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  <div className="mt-3">
-                                    <div className="font-semibold text-gray-800 dark:text-gray-200 mb-2 text-sm">
-                                      🔍 Key Insights:
-                                    </div>
-                                    <div className="space-y-1">
-                                      {(analysis.keyInsights || []).map((insight: string, insightIndex: number) => (
-                                        <div key={insightIndex} className="flex items-start gap-2 text-sm">
-                                          <span className="text-green-500 mt-0.5">•</span>
-                                          <span className="text-gray-700 dark:text-gray-300">{insight}</span>
+                                  {/* Quick Stats */}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {analysis.experienceDetails?.workHistory && (
+                                      <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                        <div className="font-semibold text-blue-800 dark:text-blue-200">
+                                          {analysis.experienceDetails.workHistory.length}
                                         </div>
-                                      ))}
+                                        <div className="text-xs text-blue-600 dark:text-blue-400">Roles</div>
+                                      </div>
+                                    )}
+                                    {analysis.extractedSkills && (
+                                      <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                        <div className="font-semibold text-green-800 dark:text-green-200">
+                                          {analysis.extractedSkills.length}
+                                        </div>
+                                        <div className="text-xs text-green-600 dark:text-green-400">Skills</div>
+                                      </div>
+                                    )}
+                                    {analysis.experienceDetails?.companies && (
+                                      <div className="text-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                                        <div className="font-semibold text-purple-800 dark:text-purple-200">
+                                          {analysis.experienceDetails.companies.length}
+                                        </div>
+                                        <div className="text-xs text-purple-600 dark:text-purple-400">Companies</div>
+                                      </div>
+                                    )}
+                                    {analysis.keyAchievements && (
+                                      <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                                        <div className="font-semibold text-yellow-800 dark:text-yellow-200">
+                                          {analysis.keyAchievements.length}
+                                        </div>
+                                        <div className="text-xs text-yellow-600 dark:text-yellow-400">Achievements</div>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Contact Info if available */}
+                                  {analysis.contactInfo && (
+                                    <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                                      <div className="font-semibold text-gray-800 dark:text-gray-200 mb-2 text-sm">
+                                        📞 Contact Information Extracted:
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2 text-xs">
+                                        {analysis.contactInfo.email !== 'not extracted' && (
+                                          <div className="flex items-center gap-1">
+                                            <Mail className="w-3 h-3 text-gray-500" />
+                                            <span>{analysis.contactInfo.email}</span>
+                                          </div>
+                                        )}
+                                        {analysis.contactInfo.phone !== 'not extracted' && (
+                                          <div className="flex items-center gap-1">
+                                            <Phone className="w-3 h-3 text-gray-500" />
+                                            <span>{analysis.contactInfo.phone}</span>
+                                          </div>
+                                        )}
+                                        {analysis.contactInfo.location !== 'not extracted' && (
+                                          <div className="flex items-center gap-1">
+                                            <MapPin className="w-3 h-3 text-gray-500" />
+                                            <span>{analysis.contactInfo.location}</span>
+                                          </div>
+                                        )}
+                                        {analysis.contactInfo.linkedin !== 'not extracted' && (
+                                          <div className="flex items-center gap-1">
+                                            <Linkedin className="w-3 h-3 text-gray-500" />
+                                            <span>LinkedIn Profile</span>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                </div>
-                              ) : (
-                                // Fallback display for files without enhanced analysis
-                                <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-l-4 border-gray-500">
-                                  <div className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
-                                    📝 Basic Analysis:
-                                  </div>
-                                  <p className="text-gray-700 dark:text-gray-300 text-sm">
-                                    Document uploaded and processed successfully. Contains professional information relevant to the {jobData.jobTitle} position.
-                                  </p>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -521,31 +862,16 @@ export default function SummaryPage() {
                     </div>
                   )}
 
-                  {/* Role Fit Analysis */}
-                  {!isLoading && (
+                  {/* Interview Strategy */}
+                  {!isLoading && analysisData?.interview_strategy && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">🎯</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Role Fit Analysis</h3>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Enhanced Interview Strategy</h3>
                       </div>
                       <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
                         <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {analysisData?.role_fit_analysis || `The candidate's background aligns well with the ${jobData.jobTitle} position. Their experience and skills show a ${analysisData?.matchScore || 75}% compatibility with the role requirements, demonstrating strong potential for success.`}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Interview Strategy */}
-                  {!isLoading && (
-                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">🏆</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">AI Interview Strategy</h3>
-                      </div>
-                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
-                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {analysisData?.interview_strategy || `Focus on highlighting your relevant experience and technical skills extracted from your documents. Be prepared to discuss specific examples from your background that demonstrate your capabilities for this ${jobData.jobTitle} role.`}
+                          {analysisData.interview_strategy}
                         </p>
                       </div>
                     </div>
@@ -560,24 +886,28 @@ export default function SummaryPage() {
                   <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-lg">🤖</span>
-                      <h3 className="text-lg font-semibold">Ready for Interview</h3>
+                      <h3 className="text-lg font-semibold">Ready for Enhanced Interview</h3>
                     </div>
                     <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
-                      Your AI assistant is ready with your extracted skills, experience, and achievements
+                      Your AI assistant is ready with your complete career timeline and professional achievements
                     </p>
 
                     <div className="space-y-3 mb-6">
                       <div className="flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Enhanced AI training completed</span>
+                        <span>Chronological career analysis completed</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>CV skills and experience extracted</span>
+                        <span>Real company names and job titles extracted</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Real examples ready for responses</span>
+                        <span>Career progression timeline ready</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span>Professional achievements catalogued</span>
                       </div>
                     </div>
 
@@ -590,42 +920,88 @@ export default function SummaryPage() {
                       {isStartingInterview ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          Starting Interview...
+                          Starting Enhanced Interview...
                         </>
                       ) : isLoading ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          Processing...
+                          Processing Career Timeline...
                         </>
                       ) : (
                         <>
-                          Start Enhanced Interview
+                          Start Chronological Interview
+                          <ArrowRight className="w-5 h-5" />
                         </>
                       )}
                     </Button>
                   </div>
 
-                  {/* How it works */}
+                  {/* Career Stats */}
+                  {!isLoading && chronologicalExperience.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Professional Roles</span>
+                          <span className="font-semibold">{careerStats.totalRoles}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Companies Worked</span>
+                          <span className="font-semibold">{careerStats.companies.length}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Industries</span>
+                          <span className="font-semibold">{careerStats.industries.length}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Technologies</span>
+                          <span className="font-semibold">{careerStats.technologies.length}</span>
+                        </div>
+
+                        {careerStats.totalExperience && (
+                          <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Total Experience</span>
+                              <Badge className="bg-blue-600 text-white text-xs">
+                                {careerStats.totalExperience}
+                              </Badge>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Enhanced Features */}
                   <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                    <h3 className="text-lg font-semibold mb-4">Enhanced Features</h3>
+                    <h3 className="text-lg font-semibold mb-4">Chronological Features</h3>
                     <div className="space-y-4 text-sm">
                       <div className="flex gap-3">
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
                           1
                         </div>
-                        <p>AI uses your actual companies and projects from CV</p>
+                        <p>AI uses your actual career timeline and progression</p>
                       </div>
                       <div className="flex gap-3">
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
                           2
                         </div>
-                        <p>Real technical skills extracted and ready</p>
+                        <p>Real company names and job titles from your CV</p>
                       </div>
                       <div className="flex gap-3">
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
                           3
                         </div>
-                        <p>Actual achievements and metrics from documents</p>
+                        <p>Chronological experience narrative for interviews</p>
+                      </div>
+                      <div className="flex gap-3">
+                        <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
+                          4
+                        </div>
+                        <p>Professional achievements and career milestones</p>
                       </div>
                     </div>
                   </div>
@@ -638,7 +1014,7 @@ export default function SummaryPage() {
                         <span className="text-3xl font-bold">4.9</span>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-300">
-                        Average rating with enhanced CV analysis
+                        Average rating with chronological career analysis
                       </p>
                     </div>
                   </div>
@@ -651,10 +1027,10 @@ export default function SummaryPage() {
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-2">
                       <span className="text-lg">🤖</span>
-                      <span className="font-semibold text-yellow-800 dark:text-yellow-200">Enhanced AI Session Active</span>
+                      <span className="font-semibold text-yellow-800 dark:text-yellow-200">Enhanced Chronological AI Session Active</span>
                     </div>
                     <div className="text-sm text-yellow-700 dark:text-yellow-300 font-mono">
-                      Session ID: enhanced_{Math.random().toString(36).substr(2, 9)} | {jobData.uploadedFiles.length} documents analyzed with skill extraction
+                      Session ID: chronological_{Math.random().toString(36).substr(2, 9)} | {chronologicalExperience.length} roles analyzed | {careerStats.totalExperience || 'Multiple years'} experience
                     </div>
                   </div>
                 </div>
@@ -672,11 +1048,12 @@ export default function SummaryPage() {
                     {isStartingInterview ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                        Starting Enhanced Interview...
+                        Starting Chronological Interview...
                       </>
                     ) : (
                       <>
-                        🎤 Start Enhanced Interview
+                        🎤 Start Career-Based Interview
+                        <ArrowRight className="w-5 h-5 ml-2" />
                       </>
                     )}
                   </Button>
@@ -689,4 +1066,9 @@ export default function SummaryPage() {
       </main>
     </div>
   )
-}
+}="space-y-4" >
+                          <Skeleton className="h-6 w-3/4" />
+                          <Skeleton className="h-20 w-full" />
+                        </div >
+                      ) : (
+  <div className
