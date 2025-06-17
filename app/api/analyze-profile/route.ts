@@ -16,8 +16,12 @@ export async function POST(req: NextRequest) {
       targetLanguage
     })
 
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OpenAI API key not configured')
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.includes('dummy') || process.env.OPENAI_API_KEY.includes('your_')) {
+      console.error('OpenAI API key not configured - using static fallback')
+      return NextResponse.json({
+        success: true,
+        analysis: generateStaticFallbackAnalysis(jobTitle || 'Professional Position', documentAnalyses || [])
+      }, { status: 200 })
     }
 
     // Build comprehensive context with chronological focus - ALWAYS IN ENGLISH FIRST
@@ -215,7 +219,7 @@ Respond ONLY with valid JSON, no additional text or markdown.`
 // Function to generate AI-powered fallback analysis with chronological focus
 async function generateChronologicalFallbackAnalysis(jobTitle: string, targetLanguage: string, documentAnalyses: any[] = []) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.includes('dummy') || process.env.OPENAI_API_KEY.includes('your_')) {
       throw new Error('No API key for fallback')
     }
 
@@ -356,7 +360,7 @@ Make it professional and realistic for a ${jobTitle} position. All content in En
 
 // Function to translate profile analysis to target language
 async function translateProfileAnalysis(analysis: any, targetLanguage: string) {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.includes('dummy') || process.env.OPENAI_API_KEY.includes('your_')) {
     return analysis
   }
 
@@ -386,6 +390,110 @@ Respond with the translated JSON maintaining the exact same structure and field 
   } catch (error) {
     console.warn('Translation failed, returning original English:', error)
     return analysis
+  }
+}
+
+// Function to generate static fallback when API key is not available
+function generateStaticFallbackAnalysis(jobTitle: string, documentAnalyses: any[] = []) {
+  let totalSkills = 0
+  let allCompanies: string[] = []
+  let allRoles: string[] = []
+  let totalExperience = "Professional experience"
+  let industries: string[] = []
+  let keyAchievements: string[] = []
+
+  documentAnalyses.forEach(doc => {
+    if (doc.extractedSkills) {
+      totalSkills += doc.extractedSkills.length
+    }
+    if (doc.experienceDetails?.companies) {
+      allCompanies = [...allCompanies, ...doc.experienceDetails.companies]
+    }
+    if (doc.experienceDetails?.roles) {
+      allRoles = [...allRoles, ...doc.experienceDetails.roles]
+    }
+    if (doc.experienceDetails?.totalYears) {
+      totalExperience = doc.experienceDetails.totalYears
+    }
+    if (doc.experienceDetails?.industries) {
+      industries = [...industries, ...doc.experienceDetails.industries]
+    }
+    if (doc.keyAchievements) {
+      keyAchievements = [...keyAchievements, ...doc.keyAchievements]
+    }
+  })
+
+  // Remove duplicates
+  allCompanies = Array.from(new Set(allCompanies))
+  allRoles = Array.from(new Set(allRoles))
+  industries = Array.from(new Set(industries))
+
+  return {
+    candidate_profile: `Professional candidate applying for ${jobTitle} with ${totalExperience} and documented career progression across ${allCompanies.length} companies.`,
+    career_progression_analysis: `Career trajectory shows professional growth across ${industries.join(', ')} industries with experience in roles including ${allRoles.slice(0, 3).join(', ')}.`,
+    key_strengths: [
+      `Proven track record with ${totalExperience}`,
+      `Experience across ${allCompanies.length} companies`,
+      `Technical expertise with ${totalSkills} documented skills`,
+      `Industry knowledge in ${industries.join(', ')}`
+    ],
+    experience_highlights: keyAchievements.slice(0, 3).length > 0 ? keyAchievements.slice(0, 3) : [
+      "Professional experience documented through career progression",
+      "Technical skills developed in real work environments",
+      "Track record of professional development"
+    ],
+    technical_competencies: documentAnalyses.flatMap(doc => doc.extractedSkills || []).slice(0, 8),
+    industry_expertise: industries,
+    leadership_and_management: `Professional experience demonstrates growth in responsibility with roles including ${allRoles.filter(role => 
+      role.toLowerCase().includes('senior') || 
+      role.toLowerCase().includes('lead') || 
+      role.toLowerCase().includes('manager')
+    ).join(', ') || 'progressive responsibility increases'}.`,
+    potential_challenges: [
+      "Prepare specific examples from documented work experience",
+      "Research company-specific technologies and practices"
+    ],
+    interview_strategy: `Focus on highlighting documented career progression across ${allCompanies.length} companies and ${totalExperience}. Use specific examples from work history.`,
+    role_fit_analysis: `Strong alignment between documented experience at ${allCompanies.slice(0, 2).join(' and ')} and ${jobTitle} requirements.`,
+    preparation_recommendations: [
+      `Review achievements from ${allCompanies.length} companies`,
+      "Prepare specific examples from documented roles",
+      "Research target company technology stack"
+    ],
+    chronological_talking_points: allCompanies.slice(0, 3).map(company => ({
+      period: "Recent Experience",
+      company: company,
+      position: allRoles[0] || "Professional Role",
+      key_talking_points: [
+        "Technical contributions and achievements",
+        "Professional growth and skill development",
+        "Team collaboration and project success"
+      ],
+      interview_relevance: `Demonstrates relevant experience for ${jobTitle}`
+    })),
+    career_narrative: `Professional journey across ${allCompanies.length} companies demonstrates consistent growth, leading naturally to ${jobTitle} role.`,
+    keySkills: documentAnalyses.flatMap(doc => doc.extractedSkills || []).slice(0, 6),
+    interviewAreas: [
+      "Professional experience and career trajectory",
+      "Technical skills from documented work",
+      "Industry knowledge and expertise",
+      "Problem-solving and achievements",
+      "Career development goals"
+    ],
+    strengths: [
+      `Documented ${totalExperience}`,
+      `Multi-company experience (${allCompanies.length} companies)`,
+      `Industry expertise in ${industries.join(', ')}`,
+      "Strong professional development track record"
+    ],
+    complexity: "Medium",
+    matchScore: Math.min(95, 70 + (totalSkills * 2) + (allCompanies.length * 5)),
+    profileInsights: [
+      `Professional background spans ${allCompanies.length} companies`,
+      `${totalExperience} with documented progression`,
+      `Industry expertise in ${industries.join(', ')}`,
+      "Strong potential for continued growth"
+    ]
   }
 }
 

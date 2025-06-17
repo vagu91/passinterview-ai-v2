@@ -26,6 +26,7 @@ import {
   Loader2
 } from "lucide-react"
 import Header from "@/components/header"
+import ConfigNotification from "@/components/config-notification"
 
 // Enhanced interface to store complete document analysis
 interface AnalyzedFile extends File {
@@ -536,6 +537,9 @@ export default function Home() {
 
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-2xl mx-auto">
+
+          {/* Configuration Status Notification */}
+          <ConfigNotification className="mb-6" />
 
           {/* Main Card */}
           <Card className="bg-white dark:bg-gray-800/95 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-white/20 dark:border-gray-700/30">

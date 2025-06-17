@@ -40,7 +40,6 @@ interface JobData {
 }
 
 interface AnalysisData {
-  // Enhanced analysis fields with chronological focus
   candidate_profile?: string
   career_progression_analysis?: string
   key_strengths?: string[]
@@ -60,8 +59,6 @@ interface AnalysisData {
     interview_relevance: string
   }>
   career_narrative?: string
-
-  // Legacy fields for backwards compatibility
   keySkills: string[]
   interviewAreas: string[]
   strengths: string[]
@@ -78,6 +75,7 @@ export default function EnhancedSummaryPage() {
   const [isStartingInterview, setIsStartingInterview] = useState(false)
   const [expandedExperience, setExpandedExperience] = useState<number | null>(null)
   const [showAllExperiences, setShowAllExperiences] = useState(false)
+  const [realDocumentData, setRealDocumentData] = useState<any[]>([])
   const router = useRouter()
 
   console.log("Enhanced Summary page rendered, jobData:", jobData, "analysisData:", analysisData)
@@ -97,6 +95,18 @@ export default function EnhancedSummaryPage() {
     const parsedJobData = JSON.parse(data)
     setJobData(parsedJobData)
 
+    // Load real document analyses from localStorage
+    const storedAnalyses = localStorage.getItem("documentAnalyses")
+    if (storedAnalyses) {
+      try {
+        const analyses = JSON.parse(storedAnalyses)
+        console.log("Loaded real document analyses:", analyses)
+        setRealDocumentData(analyses)
+      } catch (error) {
+        console.error("Error parsing stored document analyses:", error)
+      }
+    }
+
     // Call enhanced AI analysis API with chronological focus
     analyzeChronologicalProfile(parsedJobData)
   }, [router])
@@ -107,7 +117,7 @@ export default function EnhancedSummaryPage() {
       setIsLoading(true)
 
       // Get stored document analyses with chronological data
-      let documentAnalyses = jobData.documentAnalyses || []
+      let documentAnalyses = realDocumentData
 
       if (!documentAnalyses || documentAnalyses.length === 0) {
         const storedAnalyses = localStorage.getItem("documentAnalyses")
@@ -115,6 +125,7 @@ export default function EnhancedSummaryPage() {
           try {
             documentAnalyses = JSON.parse(storedAnalyses)
             console.log("Retrieved chronological document analyses:", documentAnalyses.length)
+            setRealDocumentData(documentAnalyses)
           } catch (error) {
             console.warn("Failed to parse stored document analyses:", error)
             documentAnalyses = []
@@ -140,88 +151,119 @@ export default function EnhancedSummaryPage() {
       if (result.success) {
         setAnalysisData(result.analysis)
       } else {
-        setAnalysisData(result.analysis)
+        console.warn("Analysis failed, using fallback")
+        setAnalysisData(result.analysis || generateFallbackAnalysis(jobData, documentAnalyses))
       }
     } catch (error) {
       console.error("Error in enhanced chronological profile analysis:", error)
-      // Enhanced fallback with chronological structure
-      setAnalysisData({
-        candidate_profile: `Professional candidate applying for ${jobData.jobTitle} with documented career progression and relevant industry experience.`,
-        career_progression_analysis: `Career trajectory shows consistent professional growth with increasing responsibilities and technical expertise development over time.`,
-        key_strengths: [
-          "Proven career progression with documented professional growth",
-          "Technical competencies developed through real work experience",
-          "Industry expertise gained through progressive roles",
-          "Professional communication and collaboration skills"
-        ],
-        experience_highlights: [
-          "Professional experience documented through career progression",
-          "Technical skills developed and applied in real work environments",
-          "Track record of professional development and achievement"
-        ],
-        technical_competencies: [
-          "Technical skills relevant to target role",
-          "Industry-standard tools and methodologies",
-          "Professional development practices",
-          "Communication and collaboration technologies",
-          "Continuous learning and adaptation capabilities"
-        ],
-        industry_expertise: [
-          "Domain knowledge from professional experience",
-          "Sector understanding through career progression",
-          "Industry best practices and standards awareness"
-        ],
-        leadership_and_management: "Professional experience demonstrates growth in responsibility and evidence of team collaboration and project coordination capabilities.",
-        potential_challenges: [
-          "Prepare specific examples demonstrating technical competencies from work history",
-          "Research company-specific technologies and current industry practices"
-        ],
-        interview_strategy: "Focus on highlighting documented career progression and professional achievements. Use specific examples from work history to demonstrate capabilities and growth trajectory.",
-        role_fit_analysis: `Strong alignment between documented career progression and ${jobData.jobTitle} position requirements. Professional experience trajectory shows excellent potential for success.`,
-        preparation_recommendations: [
-          "Review specific achievements from each role in career progression",
-          "Prepare to discuss technical competencies developed over time",
-          "Research target company's technology stack and industry position"
-        ],
-        chronological_talking_points: [
-          {
-            period: "Recent Professional Experience",
-            company: "Current/Recent Organization",
-            position: "Current/Recent Role",
-            key_talking_points: [
-              "Technical achievements and contributions",
-              "Professional growth and responsibility expansion",
-              "Team collaboration and project success"
-            ],
-            interview_relevance: "Demonstrates current capabilities and readiness for target role"
-          }
-        ],
-        career_narrative: `Professional journey demonstrates consistent growth and skill development leading naturally to ${jobData.jobTitle} role. Career progression shows both technical advancement and professional maturity.`,
-        keySkills: ["Technical Competency", "Professional Communication", "Problem Solving", "Career Progression", "Industry Knowledge", "Continuous Learning"],
-        interviewAreas: [
-          "Professional experience and career trajectory",
-          "Technical skills development through work history",
-          "Team collaboration and professional growth",
-          "Problem-solving approach and methodology",
-          "Industry knowledge and career development goals"
-        ],
-        strengths: [
-          "Documented professional career progression",
-          "Technical competencies verified through work experience",
-          "Professional development track record",
-          "Strong foundation for continued growth"
-        ],
-        complexity: "Medium",
-        matchScore: 80,
-        profileInsights: [
-          "Professional candidate with verified career progression",
-          "Good alignment between work history and role requirements",
-          "Strong potential for success based on professional trajectory",
-          "Career development mindset evident from progression pattern"
-        ]
-      })
+      // Enhanced fallback with real data
+      setAnalysisData(generateFallbackAnalysis(jobData, realDocumentData))
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const generateFallbackAnalysis = (jobData: JobData, documentAnalyses: any[]): AnalysisData => {
+    // Extract real data from document analyses
+    let totalSkills = 0
+    let allCompanies: string[] = []
+    let allRoles: string[] = []
+    let totalExperience = "Professional experience"
+    let industries: string[] = []
+    let keyAchievements: string[] = []
+
+    documentAnalyses.forEach(doc => {
+      if (doc.extractedSkills) {
+        totalSkills += doc.extractedSkills.length
+      }
+      if (doc.experienceDetails?.companies) {
+        allCompanies = [...allCompanies, ...doc.experienceDetails.companies]
+      }
+      if (doc.experienceDetails?.roles) {
+        allRoles = [...allRoles, ...doc.experienceDetails.roles]
+      }
+      if (doc.experienceDetails?.totalYears) {
+        totalExperience = doc.experienceDetails.totalYears
+      }
+      if (doc.experienceDetails?.industries) {
+        industries = [...industries, ...doc.experienceDetails.industries]
+      }
+      if (doc.keyAchievements) {
+        keyAchievements = [...keyAchievements, ...doc.keyAchievements]
+      }
+    })
+
+    // Remove duplicates
+    allCompanies = Array.from(new Set(allCompanies))
+    allRoles = Array.from(new Set(allRoles))
+    industries = Array.from(new Set(industries))
+
+    return {
+      candidate_profile: `Professional candidate applying for ${jobData.jobTitle} with ${totalExperience} and documented career progression across ${allCompanies.length} companies.`,
+      career_progression_analysis: `Career trajectory shows professional growth across ${industries.join(', ')} industries with experience in roles including ${allRoles.slice(0, 3).join(', ')}.`,
+      key_strengths: [
+        `Proven track record with ${totalExperience}`,
+        `Experience across ${allCompanies.length} companies`,
+        `Technical expertise with ${totalSkills} documented skills`,
+        `Industry knowledge in ${industries.join(', ')}`
+      ],
+      experience_highlights: keyAchievements.slice(0, 3).length > 0 ? keyAchievements.slice(0, 3) : [
+        "Professional experience documented through career progression",
+        "Technical skills developed in real work environments",
+        "Track record of professional development"
+      ],
+      technical_competencies: documentAnalyses.flatMap(doc => doc.extractedSkills || []).slice(0, 8),
+      industry_expertise: industries,
+      leadership_and_management: `Professional experience demonstrates growth in responsibility with roles including ${allRoles.filter(role => 
+        role.toLowerCase().includes('senior') || 
+        role.toLowerCase().includes('lead') || 
+        role.toLowerCase().includes('manager')
+      ).join(', ') || 'progressive responsibility increases'}.`,
+      potential_challenges: [
+        "Prepare specific examples from documented work experience",
+        "Research company-specific technologies and practices"
+      ],
+      interview_strategy: `Focus on highlighting documented career progression across ${allCompanies.length} companies and ${totalExperience}. Use specific examples from work history.`,
+      role_fit_analysis: `Strong alignment between documented experience at ${allCompanies.slice(0, 2).join(' and ')} and ${jobData.jobTitle} requirements.`,
+      preparation_recommendations: [
+        `Review achievements from ${allCompanies.length} companies`,
+        "Prepare specific examples from documented roles",
+        "Research target company technology stack"
+      ],
+      chronological_talking_points: allCompanies.slice(0, 3).map(company => ({
+        period: "Recent Experience",
+        company: company,
+        position: allRoles[0] || "Professional Role",
+        key_talking_points: [
+          "Technical contributions and achievements",
+          "Professional growth and skill development",
+          "Team collaboration and project success"
+        ],
+        interview_relevance: `Demonstrates relevant experience for ${jobData.jobTitle}`
+      })),
+      career_narrative: `Professional journey across ${allCompanies.length} companies demonstrates consistent growth, leading naturally to ${jobData.jobTitle} role.`,
+      keySkills: documentAnalyses.flatMap(doc => doc.extractedSkills || []).slice(0, 6),
+      interviewAreas: [
+        "Professional experience and career trajectory",
+        "Technical skills from documented work",
+        "Industry knowledge and expertise",
+        "Problem-solving and achievements",
+        "Career development goals"
+      ],
+      strengths: [
+        `Documented ${totalExperience}`,
+        `Multi-company experience (${allCompanies.length} companies)`,
+        `Industry expertise in ${industries.join(', ')}`,
+        "Strong professional development track record"
+      ],
+      complexity: "Medium",
+      matchScore: Math.min(95, 70 + (totalSkills * 2) + (allCompanies.length * 5)),
+      profileInsights: [
+        `Professional background spans ${allCompanies.length} companies`,
+        `${totalExperience} with documented progression`,
+        `Industry expertise in ${industries.join(', ')}`,
+        "Strong potential for continued growth"
+      ]
     }
   }
 
@@ -242,48 +284,39 @@ export default function EnhancedSummaryPage() {
     }
   }
 
-  // Get chronological work experience from document analyses with better data handling
+  // Get chronological work experience from real document analyses
   const getChronologicalExperience = () => {
-    const storedAnalyses = localStorage.getItem("documentAnalyses")
-    if (!storedAnalyses) return []
+    if (!realDocumentData || realDocumentData.length === 0) return []
 
-    try {
-      const documentAnalyses = JSON.parse(storedAnalyses)
-      const allWorkHistory: any[] = []
+    const allWorkHistory: any[] = []
 
-      documentAnalyses.forEach((analysis: any) => {
-        if (analysis.experienceDetails?.workHistory) {
-          allWorkHistory.push(...analysis.experienceDetails.workHistory)
+    realDocumentData.forEach((analysis: any) => {
+      if (analysis.experienceDetails?.workHistory) {
+        allWorkHistory.push(...analysis.experienceDetails.workHistory)
+      }
+    })
+
+    // Sort by start date (most recent first)
+    return allWorkHistory.sort((a, b) => {
+      const parseDate = (dateStr: string) => {
+        if (!dateStr || dateStr === 'Present') return new Date()
+        const parts = dateStr.split('/')
+        if (parts.length === 2) {
+          return new Date(parseInt(parts[1]), parseInt(parts[0]) - 1)
         }
-      })
+        return new Date(dateStr)
+      }
 
-      // Sort by start date (most recent first) with better date parsing
-      return allWorkHistory.sort((a, b) => {
-        const parseDate = (dateStr: string) => {
-          if (!dateStr || dateStr === 'Present') return new Date()
-          // Handle MM/YYYY format
-          const parts = dateStr.split('/')
-          if (parts.length === 2) {
-            return new Date(parseInt(parts[1]), parseInt(parts[0]) - 1)
-          }
-          return new Date(dateStr)
-        }
-
-        const dateA = parseDate(a.startDate || '1900-01-01')
-        const dateB = parseDate(b.startDate || '1900-01-01')
-        return dateB.getTime() - dateA.getTime()
-      })
-    } catch (error) {
-      console.error("Error parsing chronological experience:", error)
-      return []
-    }
+      const dateA = parseDate(a.startDate || '1900-01-01')
+      const dateB = parseDate(b.startDate || '1900-01-01')
+      return dateB.getTime() - dateA.getTime()
+    })
   }
 
-  // Get aggregated career statistics
+  // Get aggregated career statistics from real data
   const getCareerStats = () => {
     const experiences = getChronologicalExperience()
-    const documentAnalyses = localStorage.getItem("documentAnalyses")
-
+    
     let totalSkills = 0
     let totalAchievements = 0
     let industries = new Set<string>()
@@ -291,18 +324,11 @@ export default function EnhancedSummaryPage() {
     let technologies = new Set<string>()
     let totalExperience = ""
 
-    if (documentAnalyses) {
-      try {
-        const analyses = JSON.parse(documentAnalyses)
-        analyses.forEach((analysis: any) => {
-          if (analysis.extractedSkills) totalSkills += analysis.extractedSkills.length
-          if (analysis.keyAchievements) totalAchievements += analysis.keyAchievements.length
-          if (analysis.experienceDetails?.totalYears) totalExperience = analysis.experienceDetails.totalYears
-        })
-      } catch (error) {
-        console.error("Error parsing document analyses for stats:", error)
-      }
-    }
+    realDocumentData.forEach((analysis: any) => {
+      if (analysis.extractedSkills) totalSkills += analysis.extractedSkills.length
+      if (analysis.keyAchievements) totalAchievements += analysis.keyAchievements.length
+      if (analysis.experienceDetails?.totalYears) totalExperience = analysis.experienceDetails.totalYears
+    })
 
     experiences.forEach(exp => {
       if (exp.industry) industries.add(exp.industry)
@@ -321,8 +347,19 @@ export default function EnhancedSummaryPage() {
     }
   }
 
+  // Get contact information from real data
+  const getContactInfo = () => {
+    for (const analysis of realDocumentData) {
+      if (analysis.contactInfo) {
+        return analysis.contactInfo
+      }
+    }
+    return null
+  }
+
   const chronologicalExperience = getChronologicalExperience()
   const careerStats = getCareerStats()
+  const contactInfo = getContactInfo()
 
   if (!isAuthenticated || !jobData) {
     return null
@@ -364,14 +401,14 @@ export default function EnhancedSummaryPage() {
                     )}
                   </div>
                   <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                    🧠 {isLoading ? "Enhanced Chronological AI Training in Progress..." : "Chronological Career Analysis Complete"}
+                    🧠 {isLoading ? "Enhanced Chronological AI Training in Progress..." : "Real Career Analysis Complete"}
                   </h2>
                 </div>
 
                 <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                   {isLoading
-                    ? "Our AI is analyzing your chronological work experience, career progression, and professional achievements with advanced extraction..."
-                    : "Your complete career timeline has been analyzed. AI is ready to use your real companies, job titles, achievements, and career progression in interview responses."
+                    ? "AI is analyzing your actual work experience, career progression, and professional achievements..."
+                    : `Analysis complete! Your career timeline spanning ${careerStats.totalRoles} roles across ${careerStats.companies.length} companies has been processed. AI is ready to use your real work history in responses.`
                   }
                 </p>
 
@@ -379,12 +416,18 @@ export default function EnhancedSummaryPage() {
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Badge variant="secondary" className="gap-1 bg-gray-800 text-white dark:bg-gray-700">
                       <Clock className="w-4 h-4" />
-                      Chronological analysis completed
+                      Real data analysis completed
                     </Badge>
                     {chronologicalExperience.length > 0 && (
                       <Badge variant="outline" className="gap-1">
                         <Building className="w-4 h-4" />
-                        {chronologicalExperience.length} roles analyzed
+                        {chronologicalExperience.length} real roles analyzed
+                      </Badge>
+                    )}
+                    {careerStats.totalSkills > 0 && (
+                      <Badge variant="outline" className="gap-1">
+                        <TrendingUp className="w-4 h-4" />
+                        {careerStats.totalSkills} skills extracted
                       </Badge>
                     )}
                   </div>
@@ -404,14 +447,52 @@ export default function EnhancedSummaryPage() {
                     </div>
                     <div className="space-y-4">
                       {isLoading ? (
+                        <Skeleton className="h-20 w-full" />
+                      ) : (
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
                           <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                            {analysisData?.candidate_profile || `Experienced professional applying for ${jobData.jobTitle} with documented career progression and industry expertise.`}
+                            {analysisData?.candidate_profile || `Experienced professional applying for ${jobData.jobTitle} with documented career progression.`}
                           </p>
                         </div>
                       )}
                     </div>
                   </div>
+
+                  {/* Real Contact Information */}
+                  {!isLoading && contactInfo && (
+                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-lg">📞</span>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Contact Information</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {contactInfo.email && contactInfo.email !== 'not extracted' && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">{contactInfo.email}</span>
+                          </div>
+                        )}
+                        {contactInfo.phone && contactInfo.phone !== 'not extracted' && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">{contactInfo.phone}</span>
+                          </div>
+                        )}
+                        {contactInfo.location && contactInfo.location !== 'not extracted' && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">{contactInfo.location}</span>
+                          </div>
+                        )}
+                        {contactInfo.linkedin && contactInfo.linkedin !== 'not extracted' && (
+                          <div className="flex items-center gap-2">
+                            <Linkedin className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">LinkedIn Profile</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Career Progression Analysis */}
                   {!isLoading && analysisData?.career_progression_analysis && (
@@ -428,12 +509,12 @@ export default function EnhancedSummaryPage() {
                     </div>
                   )}
 
-                  {/* Chronological Work Experience */}
+                  {/* Real Chronological Work Experience */}
                   {!isLoading && chronologicalExperience.length > 0 && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">🏢</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Chronological Work Experience</h3>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Real Work Experience Timeline</h3>
                         <Badge variant="outline" className="ml-auto">
                           {chronologicalExperience.length} roles
                         </Badge>
@@ -581,30 +662,12 @@ export default function EnhancedSummaryPage() {
                     </div>
                   )}
 
-                  {/* Key Strengths */}
-                  {!isLoading && (analysisData?.key_strengths || analysisData?.keySkills) && (
-                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">💪</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Key Strengths from Career Analysis</h3>
-                      </div>
-                      <div className="space-y-3">
-                        {(analysisData.key_strengths || analysisData.keySkills || []).map((strength, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span className="text-gray-700 dark:text-gray-300">{strength}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Enhanced Career Statistics */}
-                  {!isLoading && chronologicalExperience.length > 0 && (
+                  {!isLoading && careerStats.totalRoles > 0 && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">📊</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Career Statistics</h3>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Real Career Statistics</h3>
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -741,26 +804,17 @@ export default function EnhancedSummaryPage() {
                     </div>
                   )}
 
-                  {/* Enhanced Documents Analysis Summary */}
+                  {/* Real Documents Analysis Summary */}
                   {jobData.uploadedFiles.length > 0 && !isLoading && (
                     <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-700">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">📄</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Enhanced Document Analysis Summary</h3>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Real Document Analysis Summary</h3>
                       </div>
 
                       <div className="space-y-4">
                         {jobData.uploadedFiles.map((fileName, index) => {
-                          const storedAnalyses = localStorage.getItem("documentAnalyses")
-                          let documentAnalyses = []
-
-                          try {
-                            documentAnalyses = storedAnalyses ? JSON.parse(storedAnalyses) : []
-                          } catch (error) {
-                            console.warn("Failed to parse document analyses for display")
-                          }
-
-                          const analysis = documentAnalyses[index]
+                          const analysis = realDocumentData[index]
 
                           return (
                             <div key={index} className="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
@@ -783,14 +837,14 @@ export default function EnhancedSummaryPage() {
 
                               {analysis && (
                                 <div className="space-y-3">
-                                  {/* Quick Stats */}
+                                  {/* Quick Stats from Real Data */}
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     {analysis.experienceDetails?.workHistory && (
                                       <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                                         <div className="font-semibold text-blue-800 dark:text-blue-200">
                                           {analysis.experienceDetails.workHistory.length}
                                         </div>
-                                        <div className="text-xs text-blue-600 dark:text-blue-400">Roles</div>
+                                        <div className="text-xs text-blue-600 dark:text-blue-400">Real Roles</div>
                                       </div>
                                     )}
                                     {analysis.extractedSkills && (
@@ -819,40 +873,15 @@ export default function EnhancedSummaryPage() {
                                     )}
                                   </div>
 
-                                  {/* Contact Info if available */}
-                                  {analysis.contactInfo && (
-                                    <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                                      <div className="font-semibold text-gray-800 dark:text-gray-200 mb-2 text-sm">
-                                        📞 Contact Information Extracted:
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-2 text-xs">
-                                        {analysis.contactInfo.email !== 'not extracted' && (
-                                          <div className="flex items-center gap-1">
-                                            <Mail className="w-3 h-3 text-gray-500" />
-                                            <span>{analysis.contactInfo.email}</span>
-                                          </div>
-                                        )}
-                                        {analysis.contactInfo.phone !== 'not extracted' && (
-                                          <div className="flex items-center gap-1">
-                                            <Phone className="w-3 h-3 text-gray-500" />
-                                            <span>{analysis.contactInfo.phone}</span>
-                                          </div>
-                                        )}
-                                        {analysis.contactInfo.location !== 'not extracted' && (
-                                          <div className="flex items-center gap-1">
-                                            <MapPin className="w-3 h-3 text-gray-500" />
-                                            <span>{analysis.contactInfo.location}</span>
-                                          </div>
-                                        )}
-                                        {analysis.contactInfo.linkedin !== 'not extracted' && (
-                                          <div className="flex items-center gap-1">
-                                            <Linkedin className="w-3 h-3 text-gray-500" />
-                                            <span>LinkedIn Profile</span>
-                                          </div>
-                                        )}
-                                      </div>
+                                  {/* Real Summary */}
+                                  <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                                    <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+                                      📋 Analysis Summary:
                                     </div>
-                                  )}
+                                    <div className="text-sm text-gray-700 dark:text-gray-300">
+                                      {analysis.summary}
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -862,12 +891,12 @@ export default function EnhancedSummaryPage() {
                     </div>
                   )}
 
-                  {/* Interview Strategy */}
+                  {/* Enhanced Interview Strategy */}
                   {!isLoading && analysisData?.interview_strategy && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">🎯</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Enhanced Interview Strategy</h3>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Interview Strategy Based on Real Data</h3>
                       </div>
                       <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
                         <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
@@ -886,29 +915,35 @@ export default function EnhancedSummaryPage() {
                   <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-lg">🤖</span>
-                      <h3 className="text-lg font-semibold">Ready for Enhanced Interview</h3>
+                      <h3 className="text-lg font-semibold">Ready for Real Interview</h3>
                     </div>
                     <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
-                      Your AI assistant is ready with your complete career timeline and professional achievements
+                      Your AI assistant is ready with your actual career timeline and real professional achievements
                     </p>
 
                     <div className="space-y-3 mb-6">
                       <div className="flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Chronological career analysis completed</span>
+                        <span>Real career data analysis completed</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Real company names and job titles extracted</span>
+                        <span>Actual company names and job titles extracted</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Career progression timeline ready</span>
+                        <span>Real career progression timeline ready</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Professional achievements catalogued</span>
+                        <span>Authentic achievements catalogued</span>
                       </div>
+                      {contactInfo && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span>Contact information extracted</span>
+                        </div>
+                      )}
                     </div>
 
                     <Button
@@ -925,21 +960,21 @@ export default function EnhancedSummaryPage() {
                       ) : isLoading ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          Processing Career Timeline...
+                          Processing Real Career Data...
                         </>
                       ) : (
                         <>
-                          Start Chronological Interview
+                          Start Interview with Real Data
                           <ArrowRight className="w-5 h-5" />
                         </>
                       )}
                     </Button>
                   </div>
 
-                  {/* Career Stats */}
-                  {!isLoading && chronologicalExperience.length > 0 && (
+                  {/* Real Career Stats */}
+                  {!isLoading && careerStats.totalRoles > 0 && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                      <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
+                      <h3 className="text-lg font-semibold mb-4">Real Career Stats</h3>
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-600 dark:text-gray-400">Professional Roles</span>
@@ -975,9 +1010,9 @@ export default function EnhancedSummaryPage() {
                     </div>
                   )}
 
-                  {/* Enhanced Features */}
+                  {/* Real Features */}
                   <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                    <h3 className="text-lg font-semibold mb-4">Chronological Features</h3>
+                    <h3 className="text-lg font-semibold mb-4">Real Data Features</h3>
                     <div className="space-y-4 text-sm">
                       <div className="flex gap-3">
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
@@ -995,13 +1030,13 @@ export default function EnhancedSummaryPage() {
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
                           3
                         </div>
-                        <p>Chronological experience narrative for interviews</p>
+                        <p>Authentic experience narrative for interviews</p>
                       </div>
                       <div className="flex gap-3">
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
                           4
                         </div>
-                        <p>Professional achievements and career milestones</p>
+                        <p>Real achievements and career milestones</p>
                       </div>
                     </div>
                   </div>
@@ -1011,26 +1046,26 @@ export default function EnhancedSummaryPage() {
                     <div className="text-center space-y-2">
                       <div className="flex items-center justify-center gap-1">
                         <Star className="w-5 h-5 text-yellow-500" />
-                        <span className="text-3xl font-bold">4.9</span>
+                        <span className="text-3xl font-bold">{analysisData?.matchScore || 85}</span>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-300">
-                        Average rating with chronological career analysis
+                        Match score with real career analysis
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Session Info */}
+              {/* Session Info with Real Data */}
               {!isLoading && (
                 <div className="mt-8 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4">
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-2">
                       <span className="text-lg">🤖</span>
-                      <span className="font-semibold text-yellow-800 dark:text-yellow-200">Enhanced Chronological AI Session Active</span>
+                      <span className="font-semibold text-yellow-800 dark:text-yellow-200">Real Career AI Session Active</span>
                     </div>
                     <div className="text-sm text-yellow-700 dark:text-yellow-300 font-mono">
-                      Session ID: chronological_{Math.random().toString(36).substr(2, 9)} | {chronologicalExperience.length} roles analyzed | {careerStats.totalExperience || 'Multiple years'} experience
+                      Session ID: real_{Math.random().toString(36).substr(2, 9)} | {chronologicalExperience.length} real roles | {careerStats.companies.length} companies | {careerStats.totalExperience || 'Experience analyzed'}
                     </div>
                   </div>
                 </div>
@@ -1048,11 +1083,11 @@ export default function EnhancedSummaryPage() {
                     {isStartingInterview ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                        Starting Chronological Interview...
+                        Starting Real Career Interview...
                       </>
                     ) : (
                       <>
-                        🎤 Start Career-Based Interview
+                        🎤 Start Interview with Real Career Data
                         <ArrowRight className="w-5 h-5 ml-2" />
                       </>
                     )}
@@ -1066,9 +1101,4 @@ export default function EnhancedSummaryPage() {
       </main>
     </div>
   )
-}="space-y-4" >
-                          <Skeleton className="h-6 w-3/4" />
-                          <Skeleton className="h-20 w-full" />
-                        </div >
-                      ) : (
-  <div className
+}
