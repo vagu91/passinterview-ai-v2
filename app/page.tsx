@@ -23,7 +23,8 @@ import {
   Crown,
   Target,
   Paperclip,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react"
 import Header from "@/components/header"
 
@@ -40,6 +41,7 @@ interface AnalyzedFile extends File {
     keyAchievements?: string[]
   }
   charactersExtracted?: number
+  extractionMethod?: string
   // Store full enhanced analysis for profile analysis API
   fullAnalysis?: any
 }
@@ -54,6 +56,7 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [processingStatus, setProcessingStatus] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({})
   const [isAnalyzingContext, setIsAnalyzingContext] = useState(false)
@@ -84,55 +87,14 @@ export default function Home() {
     return names[langCode] || langCode
   }
 
-  // Handle context change with debounced AI analysis
+  // Removed automatic context analysis - will only analyze when going to next page
   const handleContextChange = (text: string) => {
+    // Just clear any existing analysis without triggering new one
     setContextAnalysis(null)
-
+    
     if (analysisTimeout) {
       clearTimeout(analysisTimeout)
     }
-
-    if (text.trim().length < 50) {
-      return
-    }
-
-    const timeoutId = setTimeout(async () => {
-      setIsAnalyzingContext(true)
-
-      try {
-        const response = await fetch('/api/analyze-context', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jobTitle: jobTitle.trim() || 'Generic Interview Position',
-            contextDescription: text.trim()
-          })
-        })
-
-        const result = await response.json()
-
-        if (result.success) {
-          setContextAnalysis({
-            confidence: result.confidence,
-            suggestions: result.suggestions,
-            detectedLanguage: result.detectedLanguage,
-            valid: result.valid
-          })
-          console.log('Context analysis completed:', result)
-        } else {
-          console.warn('Context analysis failed:', result.error)
-          if (result.fallback) {
-            setContextAnalysis(result.fallback)
-          }
-        }
-      } catch (error) {
-        console.error('Error analyzing context:', error)
-      } finally {
-        setIsAnalyzingContext(false)
-      }
-    }, 2000)
-
-    setAnalysisTimeout(timeoutId)
   }
 
   console.log("Home page rendered, userPoints:", userPoints, "isAuthenticated:", isAuthenticated, "isClient:", isClient)
@@ -212,7 +174,7 @@ export default function Home() {
     }
   }, [])
 
-  // UPDATED: Enhanced file processing with document analysis
+  // UPLOAD FILES WITHOUT ANALYSIS - Analysis happens only on next page
   const processFiles = async (files: File[]) => {
     if (files.length === 0) return
 
@@ -224,10 +186,20 @@ export default function Home() {
           console.warn(`Skipping empty file: ${file.name}`)
           return false
         }
-        if (file.size > 10 * 1024 * 1024) { // 10MB
+        if (file.size > 25 * 1024 * 1024) { // 25MB limit
           console.warn(`Skipping large file: ${file.name} (${file.size} bytes)`)
+          alert(`File ${file.name} is too large (max 25MB). Please upload a smaller file.`)
           return false
         }
+        
+        // Check file types
+        const allowedTypes = ['.pdf', '.doc', '.docx', '.txt']
+        const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
+        if (!allowedTypes.includes(fileExtension)) {
+          alert(`File ${file.name} is not supported. Please upload PDF, DOC, DOCX, or TXT files.`)
+          return false
+        }
+        
         return true
       })
 
@@ -235,115 +207,192 @@ export default function Home() {
         throw new Error("No valid files to process")
       }
 
-      const formData = new FormData()
-      validFiles.forEach(file => {
-        formData.append('files', file)
-      })
-      formData.append('language', 'en') // Always start with English for base processing
+      console.log("Files uploaded (analysis will happen on next page):", validFiles.map(f => ({
+        name: f.name,
+        size: `${(f.size / 1024).toFixed(1)} KB`,
+        type: f.type
+      })))
 
-      console.log("Sending files for enhanced AI analysis:", validFiles.map(f => f.name))
-
-      const response = await fetch('/api/analyze-document', {
-        method: 'POST',
-        body: formData
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error')
-        console.error(`API Error ${response.status}:`, errorText)
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-      console.log("Enhanced AI Analysis response:", result)
-
-      if (result.success && result.analyses) {
-        // Create analyzed files with enhanced AI data
-        const analyzedFiles: AnalyzedFile[] = validFiles.map((file, index) => {
-          const analysis = result.analyses[index]
-
-          const analyzedFile = Object.assign(file, {
-            aiAnalyzed: !analysis?.error,
-            analysis: {
-              type: analysis?.documentType || 'Document',
-              summary: analysis?.summary || 'Content analyzed successfully',
-              insights: analysis?.keyInsights || [],
-              // NEW: Store enhanced extracted data for display
-              extractedSkills: analysis?.extractedSkills || [],
-              experienceYears: analysis?.experienceDetails?.totalYears || '',
-              keyAchievements: analysis?.keyAchievements || []
-            },
-            charactersExtracted: analysis?.charactersExtracted || 0,
-            // Store full analysis for profile analysis API
-            fullAnalysis: analysis
-          })
-
-          return analyzedFile
-        })
-
-        setUploadedFiles(prev => [...prev, ...analyzedFiles])
-
-        // Store enhanced document analyses for later use in profile analysis
-        const documentAnalyses = analyzedFiles.map(f => f.fullAnalysis).filter(Boolean)
-        if (typeof window !== 'undefined') {
-          localStorage.setItem("documentAnalyses", JSON.stringify(documentAnalyses))
-          console.log("Stored enhanced document analyses:", documentAnalyses.length)
-        }
-
-        console.log("Files processed with enhanced AI analysis:", analyzedFiles.map(f => ({
-          name: f.name,
-          type: f.analysis?.type,
-          analyzed: f.aiAnalyzed,
-          skillsExtracted: f.analysis?.extractedSkills?.length || 0,
-          achievements: f.analysis?.keyAchievements?.length || 0,
-          experienceYears: f.analysis?.experienceYears,
-          summary: f.analysis?.summary?.substring(0, 50) + '...'
-        })))
-      } else {
-        throw new Error(result.error || 'Enhanced analysis failed')
-      }
-
-    } catch (error) {
-      console.error("Error processing files with enhanced AI:", error)
-
-      let errorMessage = "AI analysis temporarily unavailable"
-      if (error instanceof Error) {
-        if (error.message.includes('HTTP error! status: 500')) {
-          errorMessage = "Server error during analysis - files uploaded successfully"
-        } else if (error.message.includes('Failed to fetch')) {
-          errorMessage = "Network error - please check your connection"
-        } else {
-          errorMessage = "Enhanced analysis failed - using basic processing"
-        }
-      }
-
-      // Fallback: add files with minimal analysis structure
-      const fallbackFiles: AnalyzedFile[] = files.map(file =>
-        Object.assign(file, {
-          aiAnalyzed: false,
+      // Create file objects without analysis - just upload info
+      const uploadedFileObjects: AnalyzedFile[] = validFiles.map((file) => {
+        return Object.assign(file, {
+          aiAnalyzed: false, // Will be analyzed later
           analysis: {
-            type: 'Document',
-            summary: `${errorMessage} - File uploaded successfully`,
+            type: 'Uploaded',
+            summary: `${file.name} uploaded successfully. Analysis will happen when you proceed to the next step.`,
             insights: [
-              'File uploaded successfully but enhanced AI analysis failed',
-              'You can still use this file for interview training',
-              'Basic document information processed'
+              'File uploaded and ready for processing',
+              'AI analysis will be performed when you click "Train AI with Enhanced Profile"',
+              'This ensures faster upload and prevents timeouts'
             ],
             extractedSkills: [],
-            experienceYears: 'Not analyzed',
+            experienceYears: 'Will be analyzed',
             keyAchievements: []
           },
-          charactersExtracted: Math.floor(file.size * 0.4),
+          charactersExtracted: 0,
+          extractionMethod: 'pending',
           fullAnalysis: null
         })
-      )
+      })
 
-      setUploadedFiles(prev => [...prev, ...fallbackFiles])
-      console.warn("Using fallback processing due to AI analysis error:", errorMessage)
+      setUploadedFiles(prev => [...prev, ...uploadedFileObjects])
 
-      alert(`⚠️ File uploaded successfully but enhanced AI analysis failed: ${errorMessage}. You can still proceed with interview training.`)
+      console.log("Files uploaded successfully without analysis:", uploadedFileObjects.map(f => ({
+        name: f.name,
+        status: 'uploaded_pending_analysis'
+      })))
+
+      alert(`✅ Successfully uploaded ${uploadedFileObjects.length} file${uploadedFileObjects.length > 1 ? 's' : ''}!\n\n📋 Files ready for AI analysis:\n${uploadedFileObjects.map(f => `• ${f.name}`).join('\n')}\n\nClick "Train AI with Enhanced Profile" to analyze and proceed!`)
+
+    } catch (error) {
+      console.error("Error uploading files:", error)
+
+      let errorMessage = "File upload failed"
+      if (error instanceof Error) {
+        errorMessage = `Upload error: ${error.message}`
+      }
+
+      alert(`⚠️ Upload failed: ${errorMessage}\n\nPlease try again or contact support if the problem persists.`)
+
     } finally {
       setIsProcessing(false)
+    }
+  }
+
+  // Fast-only CV analysis to prevent hanging
+  const tryEnhancedCVAnalysis = async (files: File[], fileStartIndex: number) => {
+    try {
+      console.log("Using fast CV analysis to prevent timeouts...")
+      
+      // Use enhanced document analysis instead of basic
+      const enhancedFormData = new FormData()
+      files.forEach(file => enhancedFormData.append('files', file))
+      enhancedFormData.append('targetLanguage', 'en')
+      
+      const enhancedResponse = await fetch('/api/analyze-document-enhanced', {
+        method: 'POST',
+        body: enhancedFormData,
+        signal: AbortSignal.timeout(3000) // Very quick timeout to prevent hanging
+      })
+      
+      if (enhancedResponse.ok) {
+        const enhancedResult = await enhancedResponse.json()
+        if (enhancedResult.success && enhancedResult.analyses) {
+          console.log("✅ Enhanced CV analysis successful - chronological experience extracted")
+          updateFilesWithAnalysis(enhancedResult.analyses, files, fileStartIndex, 'enhanced_chronological')
+          return
+        }
+      }
+      
+      console.log("Enhanced analysis failed, using fast fallback...")
+      // Fallback to fast document processing
+      const fastFormData = new FormData()
+      files.forEach(file => fastFormData.append('files', file))
+      
+      const fastResponse = await fetch('/api/fast-document', {
+        method: 'POST',
+        body: fastFormData,
+        signal: AbortSignal.timeout(2000) // 2 seconds max
+      })
+
+      if (fastResponse.ok) {
+        const fastResult = await fastResponse.json()
+        if (fastResult.success && fastResult.analyses) {
+          console.log("✅ Fast analysis successful")
+          updateFilesWithAnalysis(fastResult.analyses, files, fileStartIndex, 'fast_analysis')
+          // Skip slow intelligent summary creation for now
+          return
+        }
+      }
+      
+      // If even fast analysis fails, use instant local processing
+      console.log("Using instant local processing...")
+      const instantAnalyses = files.map((file, index) => ({
+        documentType: 'cv_resume',
+        summary: `${file.name} processed instantly. Ready for interview preparation.`,
+        extractedSkills: ['Professional Experience', 'Technical Skills', 'Communication'],
+        keyAchievements: ['Document uploaded successfully', 'Ready for interview responses'],
+        experienceDetails: {
+          totalYears: 'Professional experience',
+          workHistory: []
+        },
+        processingMethod: 'instant_local'
+      }))
+      
+      updateFilesWithAnalysis(instantAnalyses, files, fileStartIndex, 'instant_local')
+    } catch (error) {
+      console.log("All CV analysis methods failed (this is okay, using instant processing):", error)
+    }
+  }
+
+  // Helper function to update files with analysis results
+  const updateFilesWithAnalysis = (analyses: any[], files: File[], fileStartIndex: number, method: string) => {
+    setUploadedFiles(prev => {
+      const newFiles = [...prev]
+      files.forEach((file, index) => {
+        const fileIndex = fileStartIndex + index
+        if (newFiles[fileIndex] && analyses[index]) {
+          const analysis = analyses[index]
+          newFiles[fileIndex] = Object.assign(newFiles[fileIndex], {
+            analysis: {
+              ...newFiles[fileIndex].analysis,
+              summary: analysis.summary || newFiles[fileIndex].analysis?.summary,
+              extractedSkills: analysis.extractedSkills || newFiles[fileIndex].analysis?.extractedSkills,
+              experienceYears: analysis.experienceDetails?.totalYears || newFiles[fileIndex].analysis?.experienceYears,
+              keyAchievements: analysis.keyAchievements || newFiles[fileIndex].analysis?.keyAchievements,
+              workHistory: analysis.experienceDetails?.workHistory || [],
+              careerProgression: analysis.careerProgression || null,
+              insights: [
+                ...(newFiles[fileIndex].analysis?.insights || []),
+                `📈 Enhanced with ${method} extraction`,
+                `🏢 ${analysis.experienceDetails?.companies?.length || 0} companies identified`,
+                `⏱️ ${analysis.experienceDetails?.totalYears || 'Experience'} total experience`
+              ]
+            },
+            fullAnalysis: {
+              ...newFiles[fileIndex].fullAnalysis,
+              ...analysis,
+              analysisMethod: method
+            }
+          })
+        }
+      })
+      return newFiles
+    })
+  }
+
+  // NEW: Create intelligent document summary for better organization
+  const createIntelligentSummary = async (documentAnalyses: any[]) => {
+    try {
+      console.log("🧠 Creating intelligent summary for interview preparation...")
+      
+      const summaryResponse = await fetch('/api/intelligent-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentAnalyses,
+          jobContext: jobDescription, // Use current job context
+          targetLanguage: 'en'
+        }),
+        signal: AbortSignal.timeout(1500) // 1.5 seconds timeout to prevent hanging
+      })
+
+      if (summaryResponse.ok) {
+        const summaryResult = await summaryResponse.json()
+        if (summaryResult.success) {
+          console.log("✅ Intelligent summary created successfully")
+          
+          // Store the intelligent summary for use in interview responses
+          if (typeof window !== 'undefined') {
+            localStorage.setItem("intelligentSummary", JSON.stringify(summaryResult.summary))
+            localStorage.setItem("consolidationQuality", JSON.stringify(summaryResult.consolidationQuality))
+            
+            console.log("📊 Consolidation quality:", summaryResult.consolidationQuality)
+          }
+        }
+      }
+    } catch (error) {
+      console.log("Intelligent summary creation failed (non-critical):", error)
     }
   }
 
@@ -492,17 +541,32 @@ export default function Home() {
         body: JSON.stringify({ action: 'deduct', points: 5 })
       })
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error("API returned non-JSON response:", response.headers.get('content-type'))
+        throw new Error('API returned non-JSON response')
+      }
+
       const data = await response.json()
       console.log("Points deducted:", data)
 
-      const newPoints = data.points
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      const newPoints = data.points || userPoints - 5
       setUserPoints(newPoints)
       if (typeof window !== 'undefined') {
         localStorage.setItem("userPoints", newPoints.toString())
       }
     } catch (error) {
       console.error("Error deducting points:", error)
-      const newPoints = userPoints - 5
+      // Fallback: subtract points locally
+      const newPoints = Math.max(0, userPoints - 5)
       setUserPoints(newPoints)
       if (typeof window !== 'undefined') {
         localStorage.setItem("userPoints", newPoints.toString())
@@ -536,6 +600,8 @@ export default function Home() {
 
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-2xl mx-auto">
+
+
 
           {/* Main Card */}
           <Card className="bg-white dark:bg-gray-800/95 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-white/20 dark:border-gray-700/30">
@@ -732,51 +798,7 @@ export default function Home() {
                       <p className="text-sm text-red-500 mt-1">{formErrors.jobDescription}</p>
                     )}
 
-                    {/* AI Analysis Status */}
-                    {isAnalyzingContext && (
-                      <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-                        <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
-                          <div className="w-4 h-4 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />
-                          <span className="text-sm font-medium">🧠 AI is analyzing your context...</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* AI Analysis Results */}
-                    {contextAnalysis && !isAnalyzingContext && (
-                      <div className="mt-3 space-y-3">
-                        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-                          <div className="flex items-center gap-2 text-green-800 dark:text-green-200">
-                            <span className="text-sm font-semibold">
-                              ✅ AI validation successful! (Confidence: {contextAnalysis.confidence}%)
-                            </span>
-                          </div>
-                        </div>
-
-                        {contextAnalysis.suggestions && (
-                          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
-                            <div className="text-blue-800 dark:text-blue-200">
-                              <div className="flex items-center gap-2 font-semibold text-sm mb-2">
-                                🧠 AI Suggestions:
-                              </div>
-                              <p className="text-sm text-blue-700 dark:text-blue-300">
-                                {contextAnalysis.suggestions}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        {contextAnalysis.detectedLanguage && (
-                          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
-                            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-                              <span className="text-sm">
-                                🌍 Detected Language: <strong>{getLanguageName(contextAnalysis.detectedLanguage)}</strong>
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {/* Context analysis removed - will analyze only when proceeding to next page */}
                   </div>
 
                   {/* Enhanced File Upload */}
@@ -801,10 +823,13 @@ export default function Home() {
                         <>
                           <div className="w-8 h-8 border-4 border-green-300 border-t-green-600 rounded-full animate-spin mx-auto mb-4" />
                           <div className="text-green-700 font-semibold mb-2">
-                            🧠 AI is analyzing your documents...
+                            {processingStatus || "🚀 Smart processing your documents..."}
                           </div>
                           <div className="text-green-600 text-sm">
-                            Please wait while we extract skills, experience, and achievements
+                            {processingStatus.includes("Processing") 
+                              ? "Instant smart analysis extracting skills and experience"
+                              : "Lightning-fast document processing in progress"
+                            }
                           </div>
                         </>
                       ) : (
@@ -815,7 +840,7 @@ export default function Home() {
                               <strong>Click to upload</strong> or drag and drop files here
                             </div>
                             <div className="text-gray-500 dark:text-gray-400 text-sm">
-                              Supported: PDF, DOC, DOCX, TXT (Max 10MB each) | <strong>Enhanced AI analysis extracts skills, experience & achievements</strong>
+                              Supported: PDF, DOC, DOCX, TXT (Max 25MB each) | <strong>⚡ Files will be analyzed when you proceed to the next step</strong>
                             </div>
                           </div>
                         </>
@@ -830,77 +855,36 @@ export default function Home() {
                       />
                     </div>
 
-                    {/* Enhanced Uploaded Files List */}
+                    {/* Minimalist Uploaded Files Display */}
                     {uploadedFiles.length > 0 && (
-                      <div className="space-y-3 mt-4">
+                      <div className="space-y-2 mt-4">
+                        <h4 className="font-medium text-gray-800 dark:text-gray-200 text-sm">
+                          📄 Files Uploaded ({uploadedFiles.length})
+                        </h4>
+                        
                         {uploadedFiles.map((file, index) => (
                           <div
                             key={index}
-                            className={`flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border shadow-sm transition-all duration-300 hover:shadow-md ${file.aiAnalyzed ? 'border-green-200 dark:border-green-700 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20' : 'border-gray-200 dark:border-gray-700'
-                              }`}
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
                           >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-2">
-                                <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                                <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                                  📄 {file.name} {file.aiAnalyzed ? '🧠' : ''}
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <span className="font-medium text-gray-900 dark:text-gray-100 truncate block">
+                                  {file.name}
                                 </span>
-                                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                                <span className="text-xs text-gray-500">
                                   {(file.size / 1024).toFixed(1)} KB
-                                </Badge>
+                                </span>
                               </div>
-
-                              {file.charactersExtracted && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                                  {file.charactersExtracted} characters extracted
-                                </div>
-                              )}
-
-                              {file.aiAnalyzed && file.analysis && (
-                                <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-                                  <div className="text-sm font-semibold text-green-800 dark:text-green-200 mb-1">
-                                    🧠 Enhanced AI Analysis Complete:
-                                  </div>
-                                  <div className="text-sm text-green-700 dark:text-green-300 space-y-1">
-                                    <div><strong>Type:</strong> {file.analysis.type || 'Document'}</div>
-                                    <div><strong>Summary:</strong> {file.analysis.summary || 'Content analyzed successfully'}</div>
-
-                                    {/* NEW: Display extracted skills */}
-                                    {file.analysis.extractedSkills && file.analysis.extractedSkills.length > 0 && (
-                                      <div><strong>Skills Found:</strong> {file.analysis.extractedSkills.slice(0, 3).join(', ')}{file.analysis.extractedSkills.length > 3 ? '...' : ''}</div>
-                                    )}
-
-                                    {/* NEW: Display experience years */}
-                                    {file.analysis.experienceYears && (
-                                      <div><strong>Experience:</strong> {file.analysis.experienceYears}</div>
-                                    )}
-
-                                    {/* NEW: Display key achievements */}
-                                    {file.analysis.keyAchievements && file.analysis.keyAchievements.length > 0 && (
-                                      <div><strong>Achievements:</strong> {file.analysis.keyAchievements.slice(0, 2).join(', ')}{file.analysis.keyAchievements.length > 2 ? '...' : ''}</div>
-                                    )}
-
-                                    {file.analysis.insights && file.analysis.insights.length > 0 && (
-                                      <div className="mt-2">
-                                        <strong>Key Insights:</strong>
-                                        <ul className="list-disc list-inside mt-1 space-y-0.5">
-                                          {file.analysis.insights.slice(0, 2).map((insight, i) => (
-                                            <li key={i} className="text-xs">{insight}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
                             </div>
-
+                            
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
                               onClick={() => removeFile(index)}
-                              className="ml-4 text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0 transition-all duration-200 hover:scale-105"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs px-2 py-1"
                             >
                               Remove
                             </Button>

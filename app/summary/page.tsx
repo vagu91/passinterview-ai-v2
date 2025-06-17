@@ -28,7 +28,8 @@ import {
   Globe,
   Briefcase,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  AlertTriangle
 } from "lucide-react"
 import Header from "@/components/header"
 
@@ -40,17 +41,16 @@ interface JobData {
 }
 
 interface AnalysisData {
-  // Enhanced analysis fields with chronological focus
   candidate_profile?: string
-  career_progression_analysis?: string
+  career_progression_analysis?: string | null
   key_strengths?: string[]
   experience_highlights?: string[]
   technical_competencies?: string[]
   industry_expertise?: string[]
-  leadership_and_management?: string
+  leadership_and_management?: string | null
   potential_challenges?: string[]
-  interview_strategy?: string
-  role_fit_analysis?: string
+  interview_strategy?: string | null
+  role_fit_analysis?: string | null
   preparation_recommendations?: string[]
   chronological_talking_points?: Array<{
     period: string
@@ -59,9 +59,7 @@ interface AnalysisData {
     key_talking_points: string[]
     interview_relevance: string
   }>
-  career_narrative?: string
-
-  // Legacy fields for backwards compatibility
+  career_narrative?: string | null
   keySkills: string[]
   interviewAreas: string[]
   strengths: string[]
@@ -97,16 +95,16 @@ export default function EnhancedSummaryPage() {
     const parsedJobData = JSON.parse(data)
     setJobData(parsedJobData)
 
-    // Call enhanced AI analysis API with chronological focus
-    analyzeChronologicalProfile(parsedJobData)
+    // Call enhanced AI analysis API with real data only
+    analyzeRealProfile(parsedJobData)
   }, [router])
 
-  const analyzeChronologicalProfile = async (jobData: JobData) => {
+  const analyzeRealProfile = async (jobData: JobData) => {
     try {
-      console.log("Starting enhanced chronological AI profile analysis...")
+      console.log("Starting enhanced real data AI profile analysis...")
       setIsLoading(true)
 
-      // Get stored document analyses with chronological data
+      // Get stored document analyses with real data
       let documentAnalyses = jobData.documentAnalyses || []
 
       if (!documentAnalyses || documentAnalyses.length === 0) {
@@ -114,7 +112,7 @@ export default function EnhancedSummaryPage() {
         if (storedAnalyses) {
           try {
             documentAnalyses = JSON.parse(storedAnalyses)
-            console.log("Retrieved chronological document analyses:", documentAnalyses.length)
+            console.log("Retrieved real document analyses:", documentAnalyses.length)
           } catch (error) {
             console.warn("Failed to parse stored document analyses:", error)
             documentAnalyses = []
@@ -135,98 +133,164 @@ export default function EnhancedSummaryPage() {
       })
 
       const result = await response.json()
-      console.log("Enhanced chronological AI Analysis result:", result)
+      console.log("Enhanced real data AI Analysis result:", result)
 
       if (result.success) {
         setAnalysisData(result.analysis)
       } else {
-        setAnalysisData(result.analysis)
+        // Only set minimal analysis if we have real document data
+        if (documentAnalyses.length > 0) {
+          setAnalysisData(createMinimalAnalysisFromRealData(jobData, documentAnalyses))
+        } else {
+          setAnalysisData(createEmptyAnalysis(jobData))
+        }
       }
     } catch (error) {
-      console.error("Error in enhanced chronological profile analysis:", error)
-      // Enhanced fallback with chronological structure
-      setAnalysisData({
-        candidate_profile: `Professional candidate applying for ${jobData.jobTitle} with documented career progression and relevant industry experience.`,
-        career_progression_analysis: `Career trajectory shows consistent professional growth with increasing responsibilities and technical expertise development over time.`,
-        key_strengths: [
-          "Proven career progression with documented professional growth",
-          "Technical competencies developed through real work experience",
-          "Industry expertise gained through progressive roles",
-          "Professional communication and collaboration skills"
-        ],
-        experience_highlights: [
-          "Professional experience documented through career progression",
-          "Technical skills developed and applied in real work environments",
-          "Track record of professional development and achievement"
-        ],
-        technical_competencies: [
-          "Technical skills relevant to target role",
-          "Industry-standard tools and methodologies",
-          "Professional development practices",
-          "Communication and collaboration technologies",
-          "Continuous learning and adaptation capabilities"
-        ],
-        industry_expertise: [
-          "Domain knowledge from professional experience",
-          "Sector understanding through career progression",
-          "Industry best practices and standards awareness"
-        ],
-        leadership_and_management: "Professional experience demonstrates growth in responsibility and evidence of team collaboration and project coordination capabilities.",
-        potential_challenges: [
-          "Prepare specific examples demonstrating technical competencies from work history",
-          "Research company-specific technologies and current industry practices"
-        ],
-        interview_strategy: "Focus on highlighting documented career progression and professional achievements. Use specific examples from work history to demonstrate capabilities and growth trajectory.",
-        role_fit_analysis: `Strong alignment between documented career progression and ${jobData.jobTitle} position requirements. Professional experience trajectory shows excellent potential for success.`,
-        preparation_recommendations: [
-          "Review specific achievements from each role in career progression",
-          "Prepare to discuss technical competencies developed over time",
-          "Research target company's technology stack and industry position"
-        ],
-        chronological_talking_points: [
-          {
-            period: "Recent Professional Experience",
-            company: "Current/Recent Organization",
-            position: "Current/Recent Role",
-            key_talking_points: [
-              "Technical achievements and contributions",
-              "Professional growth and responsibility expansion",
-              "Team collaboration and project success"
-            ],
-            interview_relevance: "Demonstrates current capabilities and readiness for target role"
-          }
-        ],
-        career_narrative: `Professional journey demonstrates consistent growth and skill development leading naturally to ${jobData.jobTitle} role. Career progression shows both technical advancement and professional maturity.`,
-        keySkills: ["Technical Competency", "Professional Communication", "Problem Solving", "Career Progression", "Industry Knowledge", "Continuous Learning"],
-        interviewAreas: [
-          "Professional experience and career trajectory",
-          "Technical skills development through work history",
-          "Team collaboration and professional growth",
-          "Problem-solving approach and methodology",
-          "Industry knowledge and career development goals"
-        ],
-        strengths: [
-          "Documented professional career progression",
-          "Technical competencies verified through work experience",
-          "Professional development track record",
-          "Strong foundation for continued growth"
-        ],
-        complexity: "Medium",
-        matchScore: 80,
-        profileInsights: [
-          "Professional candidate with verified career progression",
-          "Good alignment between work history and role requirements",
-          "Strong potential for success based on professional trajectory",
-          "Career development mindset evident from progression pattern"
-        ]
-      })
+      console.error("Error in enhanced real data profile analysis:", error)
+      
+      // Check if we have real document data to work with
+      const storedAnalyses = localStorage.getItem("documentAnalyses")
+      let documentAnalyses = []
+      
+      try {
+        documentAnalyses = storedAnalyses ? JSON.parse(storedAnalyses) : []
+      } catch (e) {
+        console.warn("Could not parse document analyses")
+      }
+
+      if (documentAnalyses.length > 0) {
+        setAnalysisData(createMinimalAnalysisFromRealData(jobData, documentAnalyses))
+      } else {
+        setAnalysisData(createEmptyAnalysis(jobData))
+      }
     } finally {
       setIsLoading(false)
     }
   }
 
+  // Create minimal analysis from real extracted data only
+  const createMinimalAnalysisFromRealData = (jobData: JobData, documentAnalyses: any[]) => {
+    const realSkills = new Set<string>()
+    const realCompanies = new Set<string>()
+    const realRoles = new Set<string>()
+    const realIndustries = new Set<string>()
+    const realAchievements: string[] = []
+    let totalExperience = null
+    let workHistory: any[] = []
+
+    // Extract only real data from document analyses
+    documentAnalyses.forEach((analysis: any) => {
+      if (analysis.extractedSkills) {
+        analysis.extractedSkills.forEach((skill: string) => realSkills.add(skill))
+      }
+      
+      if (analysis.experienceDetails?.companies) {
+        analysis.experienceDetails.companies.forEach((company: string) => realCompanies.add(company))
+      }
+      
+      if (analysis.experienceDetails?.roles) {
+        analysis.experienceDetails.roles.forEach((role: string) => realRoles.add(role))
+      }
+      
+      if (analysis.experienceDetails?.industries) {
+        analysis.experienceDetails.industries.forEach((industry: string) => realIndustries.add(industry))
+      }
+      
+      if (analysis.keyAchievements) {
+        realAchievements.push(...analysis.keyAchievements)
+      }
+      
+      if (analysis.experienceDetails?.totalYears) {
+        totalExperience = analysis.experienceDetails.totalYears
+      }
+      
+      if (analysis.experienceDetails?.workHistory) {
+        workHistory.push(...analysis.experienceDetails.workHistory)
+      }
+    })
+
+    return {
+      candidate_profile: totalExperience ? 
+        `Professional candidate with ${totalExperience} applying for ${jobData.jobTitle}` : 
+        `Candidate applying for ${jobData.jobTitle} position`,
+      career_progression_analysis: workHistory.length > 0 ? 
+        `Career progression shows ${workHistory.length} documented professional roles` : null,
+      key_strengths: Array.from(realSkills).slice(0, 4),
+      experience_highlights: realAchievements.slice(0, 3),
+      technical_competencies: Array.from(realSkills),
+      industry_expertise: Array.from(realIndustries),
+      leadership_and_management: null,
+      potential_challenges: [],
+      interview_strategy: `Focus on documented experience and achievements from career history`,
+      role_fit_analysis: `Alignment based on ${Array.from(realSkills).length} identified skills and ${workHistory.length} roles`,
+      preparation_recommendations: workHistory.length > 0 ? [
+        "Review specific achievements from documented career progression",
+        "Prepare examples from actual work experience"
+      ] : [],
+      chronological_talking_points: workHistory.map((job: any) => ({
+        period: job.startDate && job.endDate ? `${job.startDate} - ${job.endDate}` : "Career period",
+        company: job.company || "Professional experience",
+        position: job.position || "Role",
+        key_talking_points: job.responsibilities?.slice(0, 3) || ["Professional responsibilities"],
+        interview_relevance: "Demonstrates relevant experience for target position"
+      })),
+      career_narrative: workHistory.length > 0 ? 
+        `Professional journey with documented experience at ${Array.from(realCompanies).join(', ')}` : 
+        `Professional background relevant to ${jobData.jobTitle}`,
+      keySkills: Array.from(realSkills),
+      interviewAreas: [
+        "Professional experience discussion",
+        "Technical competencies",
+        "Career development"
+      ],
+      strengths: Array.from(realSkills).slice(0, 4),
+      complexity: "Medium",
+      matchScore: Math.min(85, 60 + (Array.from(realSkills).length * 2) + (workHistory.length * 5)),
+      profileInsights: [
+        `${Array.from(realSkills).length} technical skills identified`,
+        `${workHistory.length} professional roles documented`,
+        `${Array.from(realIndustries).length} industries experienced`
+      ].filter(insight => !insight.includes('0 '))
+    }
+  }
+
+  // Create empty analysis when no real data is available
+  const createEmptyAnalysis = (jobData: JobData) => {
+    return {
+      candidate_profile: `Candidate applying for ${jobData.jobTitle} position`,
+      career_progression_analysis: null,
+      key_strengths: [],
+      experience_highlights: [],
+      technical_competencies: [],
+      industry_expertise: [],
+      leadership_and_management: null,
+      potential_challenges: [],
+      interview_strategy: `Prepare for ${jobData.jobTitle} interview based on role requirements`,
+      role_fit_analysis: `Interview preparation for ${jobData.jobTitle} position`,
+      preparation_recommendations: [
+        "Review job requirements carefully",
+        "Prepare examples from your experience"
+      ],
+      chronological_talking_points: [],
+      career_narrative: `Professional candidate interested in ${jobData.jobTitle} role`,
+      keySkills: [],
+      interviewAreas: [
+        "Role requirements discussion",
+        "Experience and background",
+        "Career goals"
+      ],
+      strengths: [],
+      complexity: "Basic",
+      matchScore: 65,
+      profileInsights: [
+        "No detailed CV analysis available",
+        "Basic interview preparation mode"
+      ]
+    }
+  }
+
   const handleStartInterview = async () => {
-    console.log("Starting interview with enhanced chronological AI analysis")
+    console.log("Starting interview with real data analysis")
     setIsStartingInterview(true)
 
     try {
@@ -242,8 +306,8 @@ export default function EnhancedSummaryPage() {
     }
   }
 
-  // Get chronological work experience from document analyses with better data handling
-  const getChronologicalExperience = () => {
+  // Get real chronological work experience from document analyses
+  const getRealChronologicalExperience = () => {
     const storedAnalyses = localStorage.getItem("documentAnalyses")
     if (!storedAnalyses) return []
 
@@ -253,7 +317,11 @@ export default function EnhancedSummaryPage() {
 
       documentAnalyses.forEach((analysis: any) => {
         if (analysis.experienceDetails?.workHistory) {
-          allWorkHistory.push(...analysis.experienceDetails.workHistory)
+          // Only add entries with real company or position data
+          const validJobs = analysis.experienceDetails.workHistory.filter((job: any) => 
+            (job.company && job.company.trim()) || (job.position && job.position.trim())
+          )
+          allWorkHistory.push(...validJobs)
         }
       })
 
@@ -261,7 +329,6 @@ export default function EnhancedSummaryPage() {
       return allWorkHistory.sort((a, b) => {
         const parseDate = (dateStr: string) => {
           if (!dateStr || dateStr === 'Present') return new Date()
-          // Handle MM/YYYY format
           const parts = dateStr.split('/')
           if (parts.length === 2) {
             return new Date(parseInt(parts[1]), parseInt(parts[0]) - 1)
@@ -274,14 +341,58 @@ export default function EnhancedSummaryPage() {
         return dateB.getTime() - dateA.getTime()
       })
     } catch (error) {
-      console.error("Error parsing chronological experience:", error)
+      console.error("Error parsing real chronological experience:", error)
       return []
     }
   }
 
-  // Get aggregated career statistics
-  const getCareerStats = () => {
-    const experiences = getChronologicalExperience()
+  // Get real contact information from document analyses
+  const getRealContactInfo = () => {
+    const storedAnalyses = localStorage.getItem("documentAnalyses")
+    if (!storedAnalyses) return null
+
+    try {
+      const documentAnalyses = JSON.parse(storedAnalyses)
+      let contactInfo = {
+        email: null,
+        phone: null,
+        location: null,
+        linkedin: null,
+        portfolio: null
+      }
+
+      documentAnalyses.forEach((analysis: any) => {
+        if (analysis.contactInfo) {
+          if (analysis.contactInfo.email && analysis.contactInfo.email !== 'not extracted') {
+            contactInfo.email = analysis.contactInfo.email
+          }
+          if (analysis.contactInfo.phone && analysis.contactInfo.phone !== 'not extracted') {
+            contactInfo.phone = analysis.contactInfo.phone
+          }
+          if (analysis.contactInfo.location && analysis.contactInfo.location !== 'not extracted') {
+            contactInfo.location = analysis.contactInfo.location
+          }
+          if (analysis.contactInfo.linkedin && analysis.contactInfo.linkedin !== 'not extracted') {
+            contactInfo.linkedin = analysis.contactInfo.linkedin
+          }
+          if (analysis.contactInfo.portfolio && analysis.contactInfo.portfolio !== 'not extracted') {
+            contactInfo.portfolio = analysis.contactInfo.portfolio
+          }
+        }
+      })
+
+      // Return null if no real contact info found
+      const hasRealInfo = Object.values(contactInfo).some(value => value !== null)
+      return hasRealInfo ? contactInfo : null
+    } catch (error) {
+      console.error("Error parsing real contact info:", error)
+      return null
+    }
+  }
+
+  // Get aggregated real career statistics
+  const getRealCareerStats = () => {
+    const experiences = getRealChronologicalExperience()
     const documentAnalyses = localStorage.getItem("documentAnalyses")
 
     let totalSkills = 0
@@ -317,12 +428,14 @@ export default function EnhancedSummaryPage() {
       industries: Array.from(industries),
       companies: Array.from(companies),
       technologies: Array.from(technologies),
-      totalExperience
+      totalExperience,
+      hasRealData: experiences.length > 0 || totalSkills > 0 || totalAchievements > 0
     }
   }
 
-  const chronologicalExperience = getChronologicalExperience()
-  const careerStats = getCareerStats()
+  const chronologicalExperience = getRealChronologicalExperience()
+  const realContactInfo = getRealContactInfo()
+  const careerStats = getRealCareerStats()
 
   if (!isAuthenticated || !jobData) {
     return null
@@ -345,33 +458,39 @@ export default function EnhancedSummaryPage() {
                 </h1>
 
                 <div className="inline-flex items-center bg-red-500 text-white px-4 py-2 rounded-full text-sm font-medium">
-                  🤖 AI Responds As You Using Your Real Career History
+                  🤖 AI Trained with Your Real Career Data
                 </div>
 
                 <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed">
-                  Intelligent Real-Time Assistant with Chronological Experience Integration
+                  Intelligent Real-Time Assistant with Authentic Professional Background
                 </p>
               </div>
 
-              {/* AI Analysis Complete Section */}
+              {/* AI Analysis Status */}
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-6 mb-8">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
                     {isLoading ? (
                       <Loader2 className="w-5 h-5 text-green-600 animate-spin" />
-                    ) : (
+                    ) : careerStats.hasRealData ? (
                       <CheckCircle className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <AlertTriangle className="w-5 h-5 text-yellow-600" />
                     )}
                   </div>
                   <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                    🧠 {isLoading ? "Enhanced Chronological AI Training in Progress..." : "Chronological Career Analysis Complete"}
+                    {isLoading ? "🧠 Analyzing Your Real Career Data..." : 
+                     careerStats.hasRealData ? "✅ Real Career Data Analysis Complete" : 
+                     "⚠️ Limited Career Data Available"}
                   </h2>
                 </div>
 
                 <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                   {isLoading
-                    ? "Our AI is analyzing your chronological work experience, career progression, and professional achievements with advanced extraction..."
-                    : "Your complete career timeline has been analyzed. AI is ready to use your real companies, job titles, achievements, and career progression in interview responses."
+                    ? "Extracting authentic career information from your uploaded documents..."
+                    : careerStats.hasRealData
+                    ? `Found ${careerStats.totalRoles} professional roles, ${careerStats.totalSkills} skills, and ${careerStats.companies.length} companies from your documents.`
+                    : "AI will work with available job context. Upload your CV for personalized responses with real career data."
                   }
                 </p>
 
@@ -379,12 +498,18 @@ export default function EnhancedSummaryPage() {
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Badge variant="secondary" className="gap-1 bg-gray-800 text-white dark:bg-gray-700">
                       <Clock className="w-4 h-4" />
-                      Chronological analysis completed
+                      {careerStats.hasRealData ? "Real data extracted" : "Basic mode"}
                     </Badge>
                     {chronologicalExperience.length > 0 && (
                       <Badge variant="outline" className="gap-1">
                         <Building className="w-4 h-4" />
-                        {chronologicalExperience.length} roles analyzed
+                        {chronologicalExperience.length} roles found
+                      </Badge>
+                    )}
+                    {careerStats.totalSkills > 0 && (
+                      <Badge variant="outline" className="gap-1">
+                        <Target className="w-4 h-4" />
+                        {careerStats.totalSkills} skills identified
                       </Badge>
                     )}
                   </div>
@@ -393,47 +518,30 @@ export default function EnhancedSummaryPage() {
 
               <div className="grid lg:grid-cols-3 gap-8">
 
-                {/* Left Column - Enhanced Analysis Sections */}
+                {/* Left Column - Real Data Sections */}
                 <div className="lg:col-span-2 space-y-6">
 
-                  {/* Professional Profile */}
-                  <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-lg">👤</span>
-                      <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Professional Profile</h3>
-                    </div>
-                    <div className="space-y-4">
-                      {isLoading ? (
-                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
-                          <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                            {analysisData?.candidate_profile || `Experienced professional applying for ${jobData.jobTitle} with documented career progression and industry expertise.`}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Career Progression Analysis */}
-                  {!isLoading && analysisData?.career_progression_analysis && (
+                  {/* Professional Profile - Only show if we have real data */}
+                  {!isLoading && analysisData?.candidate_profile && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">📈</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Career Progression Analysis</h3>
+                        <span className="text-lg">👤</span>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Professional Profile</h3>
                       </div>
                       <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
                         <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {analysisData.career_progression_analysis}
+                          {analysisData.candidate_profile}
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {/* Chronological Work Experience */}
+                  {/* Real Chronological Work Experience - Only show if data exists */}
                   {!isLoading && chronologicalExperience.length > 0 && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">🏢</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Chronological Work Experience</h3>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Extracted Work Experience</h3>
                         <Badge variant="outline" className="ml-auto">
                           {chronologicalExperience.length} roles
                         </Badge>
@@ -444,35 +552,41 @@ export default function EnhancedSummaryPage() {
                           <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
-                                <h4 className="font-semibold text-gray-900 dark:text-gray-100">
-                                  {job.position}
-                                </h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Building className="w-4 h-4 text-gray-500" />
-                                  <span className="text-gray-700 dark:text-gray-300 font-medium">
-                                    {job.company}
-                                  </span>
-                                  {job.industry && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {job.industry}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-right text-sm text-gray-500 dark:text-gray-400">
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="w-4 h-4" />
-                                  <span>{job.startDate} - {job.endDate}</span>
-                                </div>
-                                {job.duration && (
-                                  <div className="mt-1 text-xs">
-                                    {job.duration}
+                                {job.position && (
+                                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">
+                                    {job.position}
+                                  </h4>
+                                )}
+                                {job.company && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Building className="w-4 h-4 text-gray-500" />
+                                    <span className="text-gray-700 dark:text-gray-300 font-medium">
+                                      {job.company}
+                                    </span>
+                                    {job.industry && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {job.industry}
+                                      </Badge>
+                                    )}
                                   </div>
                                 )}
                               </div>
+                              {(job.startDate || job.endDate) && (
+                                <div className="text-right text-sm text-gray-500 dark:text-gray-400">
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="w-4 h-4" />
+                                    <span>{job.startDate || '?'} - {job.endDate || 'Present'}</span>
+                                  </div>
+                                  {job.duration && (
+                                    <div className="mt-1 text-xs">
+                                      {job.duration}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
-                            {/* Responsibilities */}
+                            {/* Show responsibilities if available */}
                             {job.responsibilities && job.responsibilities.length > 0 && (
                               <div className="mb-3">
                                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -505,11 +619,11 @@ export default function EnhancedSummaryPage() {
                               </div>
                             )}
 
-                            {/* Technologies */}
+                            {/* Show technologies if available */}
                             {job.technologies && job.technologies.length > 0 && (
                               <div className="mb-3">
                                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                  Technologies Used:
+                                  Technologies:
                                 </div>
                                 <div className="flex flex-wrap gap-1">
                                   {job.technologies.map((tech: string, techIndex: number) => (
@@ -521,11 +635,11 @@ export default function EnhancedSummaryPage() {
                               </div>
                             )}
 
-                            {/* Achievements */}
+                            {/* Show achievements if available */}
                             {job.achievements && job.achievements.length > 0 && (
                               <div>
                                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                  Key Achievements:
+                                  Achievements:
                                 </div>
                                 <div className="space-y-1">
                                   {job.achievements.map((achievement: string, achIndex: number) => (
@@ -537,22 +651,6 @@ export default function EnhancedSummaryPage() {
                                 </div>
                               </div>
                             )}
-
-                            {/* Company Size and Industry */}
-                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                              {job.companySize && (
-                                <div className="flex items-center gap-1">
-                                  <Users className="w-3 h-3" />
-                                  <span>{job.companySize}</span>
-                                </div>
-                              )}
-                              {job.industry && (
-                                <div className="flex items-center gap-1">
-                                  <Target className="w-3 h-3" />
-                                  <span>{job.industry}</span>
-                                </div>
-                              )}
-                            </div>
                           </div>
                         ))}
 
@@ -581,26 +679,71 @@ export default function EnhancedSummaryPage() {
                     </div>
                   )}
 
-                  {/* Key Strengths */}
-                  {!isLoading && (analysisData?.key_strengths || analysisData?.keySkills) && (
+                  {/* Real Contact Information - Only show if extracted */}
+                  {!isLoading && realContactInfo && (
+                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-lg">📞</span>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Contact Information</h3>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {realContactInfo.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">{realContactInfo.email}</span>
+                          </div>
+                        )}
+                        {realContactInfo.phone && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">{realContactInfo.phone}</span>
+                          </div>
+                        )}
+                        {realContactInfo.location && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">{realContactInfo.location}</span>
+                          </div>
+                        )}
+                        {realContactInfo.linkedin && (
+                          <div className="flex items-center gap-2">
+                            <Linkedin className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">LinkedIn Profile</span>
+                          </div>
+                        )}
+                        {realContactInfo.portfolio && (
+                          <div className="flex items-center gap-2">
+                            <Globe className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm">Portfolio</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Real Skills - Only show if extracted */}
+                  {!isLoading && analysisData?.keySkills && analysisData.keySkills.length > 0 && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">💪</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Key Strengths from Career Analysis</h3>
+                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Extracted Skills</h3>
+                        <Badge variant="outline" className="ml-auto">
+                          {analysisData.keySkills.length} skills
+                        </Badge>
                       </div>
-                      <div className="space-y-3">
-                        {(analysisData.key_strengths || analysisData.keySkills || []).map((strength, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <span className="text-green-500">✓</span>
-                            <span className="text-gray-700 dark:text-gray-300">{strength}</span>
-                          </div>
+                      <div className="flex flex-wrap gap-2">
+                        {analysisData.keySkills.map((skill, index) => (
+                          <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                            {skill}
+                          </Badge>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Enhanced Career Statistics */}
-                  {!isLoading && chronologicalExperience.length > 0 && (
+                  {/* Career Statistics - Only show if we have real data */}
+                  {!isLoading && careerStats.hasRealData && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">📊</span>
@@ -608,58 +751,45 @@ export default function EnhancedSummaryPage() {
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                          <div className="font-bold text-2xl text-blue-800 dark:text-blue-200">
-                            {careerStats.totalRoles}
+                        {careerStats.totalRoles > 0 && (
+                          <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <div className="font-bold text-2xl text-blue-800 dark:text-blue-200">
+                              {careerStats.totalRoles}
+                            </div>
+                            <div className="text-sm text-blue-600 dark:text-blue-400">Professional Roles</div>
                           </div>
-                          <div className="text-sm text-blue-600 dark:text-blue-400">Professional Roles</div>
-                        </div>
+                        )}
 
-                        <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                          <div className="font-bold text-2xl text-green-800 dark:text-green-200">
-                            {careerStats.companies.length}
+                        {careerStats.companies.length > 0 && (
+                          <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                            <div className="font-bold text-2xl text-green-800 dark:text-green-200">
+                              {careerStats.companies.length}
+                            </div>
+                            <div className="text-sm text-green-600 dark:text-green-400">Companies</div>
                           </div>
-                          <div className="text-sm text-green-600 dark:text-green-400">Companies</div>
-                        </div>
+                        )}
 
-                        <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                          <div className="font-bold text-2xl text-purple-800 dark:text-purple-200">
-                            {careerStats.totalSkills}
+                        {careerStats.totalSkills > 0 && (
+                          <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                            <div className="font-bold text-2xl text-purple-800 dark:text-purple-200">
+                              {careerStats.totalSkills}
+                            </div>
+                            <div className="text-sm text-purple-600 dark:text-purple-400">Skills & Technologies</div>
                           </div>
-                          <div className="text-sm text-purple-600 dark:text-purple-400">Skills & Technologies</div>
-                        </div>
+                        )}
 
-                        <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                          <div className="font-bold text-2xl text-yellow-800 dark:text-yellow-200">
-                            {careerStats.industries.length}
+                        {careerStats.industries.length > 0 && (
+                          <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                            <div className="font-bold text-2xl text-yellow-800 dark:text-yellow-200">
+                              {careerStats.industries.length}
+                            </div>
+                            <div className="text-sm text-yellow-600 dark:text-yellow-400">Industries</div>
                           </div>
-                          <div className="text-sm text-yellow-600 dark:text-yellow-400">Industries</div>
-                        </div>
+                        )}
                       </div>
 
-                      {/* Industry and Technology Highlights */}
-                      {careerStats.industries.length > 0 && (
-                        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                          <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                            Industry Experience:
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {careerStats.industries.slice(0, 6).map((industry, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {industry}
-                              </Badge>
-                            ))}
-                            {careerStats.industries.length > 6 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{careerStats.industries.length - 6} more
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
                       {careerStats.totalExperience && (
-                        <div className="mt-3 text-center">
+                        <div className="mt-4 text-center">
                           <Badge className="bg-blue-600 text-white">
                             Total Experience: {careerStats.totalExperience}
                           </Badge>
@@ -668,247 +798,53 @@ export default function EnhancedSummaryPage() {
                     </div>
                   )}
 
-                  {/* Leadership and Management */}
-                  {!isLoading && analysisData?.leadership_and_management && (
-                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">👥</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Leadership & Management Experience</h3>
-                      </div>
-                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
-                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {analysisData.leadership_and_management}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Chronological Talking Points */}
-                  {!isLoading && analysisData?.chronological_talking_points && analysisData.chronological_talking_points.length > 0 && (
-                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">💬</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Interview Talking Points</h3>
-                      </div>
-                      <div className="space-y-4">
-                        {analysisData.chronological_talking_points.map((talkingPoint, index) => (
-                          <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Calendar className="w-4 h-4 text-blue-500" />
-                              <span className="font-medium text-gray-900 dark:text-gray-100">
-                                {talkingPoint.position} at {talkingPoint.company}
-                              </span>
-                              <Badge variant="outline" className="text-xs">
-                                {talkingPoint.period}
-                              </Badge>
-                            </div>
-
-                            <div className="space-y-2 mb-3">
-                              {talkingPoint.key_talking_points.map((point, pointIndex) => (
-                                <div key={pointIndex} className="flex items-start gap-2 text-sm">
-                                  <span className="text-green-500 mt-1">•</span>
-                                  <span className="text-gray-700 dark:text-gray-300">{point}</span>
-                                </div>
-                              ))}
-                            </div>
-
-                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                              <div className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
-                                Interview Relevance:
-                              </div>
-                              <div className="text-sm text-blue-700 dark:text-blue-300">
-                                {talkingPoint.interview_relevance}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Career Narrative */}
-                  {!isLoading && analysisData?.career_narrative && (
-                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">📖</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Career Narrative</h3>
-                      </div>
-                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
-                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {analysisData.career_narrative}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Enhanced Documents Analysis Summary */}
-                  {jobData.uploadedFiles.length > 0 && !isLoading && (
-                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">📄</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Enhanced Document Analysis Summary</h3>
-                      </div>
-
-                      <div className="space-y-4">
-                        {jobData.uploadedFiles.map((fileName, index) => {
-                          const storedAnalyses = localStorage.getItem("documentAnalyses")
-                          let documentAnalyses = []
-
-                          try {
-                            documentAnalyses = storedAnalyses ? JSON.parse(storedAnalyses) : []
-                          } catch (error) {
-                            console.warn("Failed to parse document analyses for display")
-                          }
-
-                          const analysis = documentAnalyses[index]
-
-                          return (
-                            <div key={index} className="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                  <FileText className="w-5 h-5 text-blue-500" />
-                                  <span className="font-medium text-gray-900 dark:text-gray-100">{fileName}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge className="bg-green-500 text-white text-xs">
-                                    {analysis?.documentType || 'document'}
-                                  </Badge>
-                                  {analysis?.experienceDetails?.totalYears && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {analysis.experienceDetails.totalYears}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-
-                              {analysis && (
-                                <div className="space-y-3">
-                                  {/* Quick Stats */}
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {analysis.experienceDetails?.workHistory && (
-                                      <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                        <div className="font-semibold text-blue-800 dark:text-blue-200">
-                                          {analysis.experienceDetails.workHistory.length}
-                                        </div>
-                                        <div className="text-xs text-blue-600 dark:text-blue-400">Roles</div>
-                                      </div>
-                                    )}
-                                    {analysis.extractedSkills && (
-                                      <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                                        <div className="font-semibold text-green-800 dark:text-green-200">
-                                          {analysis.extractedSkills.length}
-                                        </div>
-                                        <div className="text-xs text-green-600 dark:text-green-400">Skills</div>
-                                      </div>
-                                    )}
-                                    {analysis.experienceDetails?.companies && (
-                                      <div className="text-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                                        <div className="font-semibold text-purple-800 dark:text-purple-200">
-                                          {analysis.experienceDetails.companies.length}
-                                        </div>
-                                        <div className="text-xs text-purple-600 dark:text-purple-400">Companies</div>
-                                      </div>
-                                    )}
-                                    {analysis.keyAchievements && (
-                                      <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                                        <div className="font-semibold text-yellow-800 dark:text-yellow-200">
-                                          {analysis.keyAchievements.length}
-                                        </div>
-                                        <div className="text-xs text-yellow-600 dark:text-yellow-400">Achievements</div>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Contact Info if available */}
-                                  {analysis.contactInfo && (
-                                    <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                                      <div className="font-semibold text-gray-800 dark:text-gray-200 mb-2 text-sm">
-                                        📞 Contact Information Extracted:
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-2 text-xs">
-                                        {analysis.contactInfo.email !== 'not extracted' && (
-                                          <div className="flex items-center gap-1">
-                                            <Mail className="w-3 h-3 text-gray-500" />
-                                            <span>{analysis.contactInfo.email}</span>
-                                          </div>
-                                        )}
-                                        {analysis.contactInfo.phone !== 'not extracted' && (
-                                          <div className="flex items-center gap-1">
-                                            <Phone className="w-3 h-3 text-gray-500" />
-                                            <span>{analysis.contactInfo.phone}</span>
-                                          </div>
-                                        )}
-                                        {analysis.contactInfo.location !== 'not extracted' && (
-                                          <div className="flex items-center gap-1">
-                                            <MapPin className="w-3 h-3 text-gray-500" />
-                                            <span>{analysis.contactInfo.location}</span>
-                                          </div>
-                                        )}
-                                        {analysis.contactInfo.linkedin !== 'not extracted' && (
-                                          <div className="flex items-center gap-1">
-                                            <Linkedin className="w-3 h-3 text-gray-500" />
-                                            <span>LinkedIn Profile</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Interview Strategy */}
-                  {!isLoading && analysisData?.interview_strategy && (
-                    <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">🎯</span>
-                        <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Enhanced Interview Strategy</h3>
-                      </div>
-                      <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
-                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {analysisData.interview_strategy}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
                 </div>
 
-                {/* Right Column - Sidebar Cards */}
+                {/* Right Column - Action Sidebar */}
                 <div className="space-y-6">
 
                   {/* Ready to Start */}
                   <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-lg">🤖</span>
-                      <h3 className="text-lg font-semibold">Ready for Enhanced Interview</h3>
+                      <h3 className="text-lg font-semibold">Interview Ready</h3>
                     </div>
                     <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
-                      Your AI assistant is ready with your complete career timeline and professional achievements
+                      {careerStats.hasRealData 
+                        ? "AI trained with your real career data and professional experience"
+                        : "AI ready for interview with available job context"
+                      }
                     </p>
 
                     <div className="space-y-3 mb-6">
                       <div className="flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Chronological career analysis completed</span>
+                        <span>{careerStats.hasRealData ? "Real career data analyzed" : "Job context processed"}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Real company names and job titles extracted</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Career progression timeline ready</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Professional achievements catalogued</span>
-                      </div>
+                      {careerStats.totalRoles > 0 && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span>{careerStats.totalRoles} professional roles extracted</span>
+                        </div>
+                      )}
+                      {careerStats.companies.length > 0 && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span>{careerStats.companies.length} companies identified</span>
+                        </div>
+                      )}
+                      {careerStats.totalSkills > 0 && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span>{careerStats.totalSkills} skills catalogued</span>
+                        </div>
+                      )}
+                      {!careerStats.hasRealData && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span>Basic interview preparation ready</span>
+                        </div>
+                      )}
                     </div>
 
                     <Button
@@ -920,46 +856,54 @@ export default function EnhancedSummaryPage() {
                       {isStartingInterview ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          Starting Enhanced Interview...
+                          Starting Interview...
                         </>
                       ) : isLoading ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          Processing Career Timeline...
+                          Processing Data...
                         </>
                       ) : (
                         <>
-                          Start Chronological Interview
+                          Start AI Interview
                           <ArrowRight className="w-5 h-5" />
                         </>
                       )}
                     </Button>
                   </div>
 
-                  {/* Career Stats */}
-                  {!isLoading && chronologicalExperience.length > 0 && (
+                  {/* Real Career Stats - Only show if we have real data */}
+                  {!isLoading && careerStats.hasRealData && (
                     <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                       <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Professional Roles</span>
-                          <span className="font-semibold">{careerStats.totalRoles}</span>
-                        </div>
+                        {careerStats.totalRoles > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Professional Roles</span>
+                            <span className="font-semibold">{careerStats.totalRoles}</span>
+                          </div>
+                        )}
 
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Companies Worked</span>
-                          <span className="font-semibold">{careerStats.companies.length}</span>
-                        </div>
+                        {careerStats.companies.length > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Companies</span>
+                            <span className="font-semibold">{careerStats.companies.length}</span>
+                          </div>
+                        )}
 
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Industries</span>
-                          <span className="font-semibold">{careerStats.industries.length}</span>
-                        </div>
+                        {careerStats.industries.length > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Industries</span>
+                            <span className="font-semibold">{careerStats.industries.length}</span>
+                          </div>
+                        )}
 
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Technologies</span>
-                          <span className="font-semibold">{careerStats.technologies.length}</span>
-                        </div>
+                        {careerStats.totalSkills > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Skills</span>
+                            <span className="font-semibold">{careerStats.totalSkills}</span>
+                          </div>
+                        )}
 
                         {careerStats.totalExperience && (
                           <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
@@ -975,51 +919,159 @@ export default function EnhancedSummaryPage() {
                     </div>
                   )}
 
-                  {/* Enhanced Features */}
+                  {/* Data Quality Indicator */}
                   <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-                    <h3 className="text-lg font-semibold mb-4">Chronological Features</h3>
+                    <h3 className="text-lg font-semibold mb-4">Data Quality</h3>
                     <div className="space-y-4 text-sm">
                       <div className="flex gap-3">
-                        <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${careerStats.hasRealData ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600'}`}>
                           1
                         </div>
-                        <p>AI uses your actual career timeline and progression</p>
+                        <p>{careerStats.hasRealData ? "Real career data extracted from documents" : "Basic job context available"}</p>
                       </div>
                       <div className="flex gap-3">
-                        <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${careerStats.totalRoles > 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-900/30 text-gray-600'}`}>
                           2
                         </div>
-                        <p>Real company names and job titles from your CV</p>
+                        <p>{careerStats.totalRoles > 0 ? `${careerStats.totalRoles} professional roles identified` : "No specific work history found"}</p>
                       </div>
                       <div className="flex gap-3">
-                        <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${careerStats.totalSkills > 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-900/30 text-gray-600'}`}>
                           3
                         </div>
-                        <p>Chronological experience narrative for interviews</p>
+                        <p>{careerStats.totalSkills > 0 ? `${careerStats.totalSkills} technical skills catalogued` : "No specific skills extracted"}</p>
                       </div>
                       <div className="flex gap-3">
-                        <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-semibold text-blue-600">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${realContactInfo ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-900/30 text-gray-600'}`}>
                           4
                         </div>
-                        <p>Professional achievements and career milestones</p>
+                        <p>{realContactInfo ? "Contact information extracted" : "No contact information found"}</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Rating */}
+                  {/* Performance Rating */}
                   <div className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                     <div className="text-center space-y-2">
                       <div className="flex items-center justify-center gap-1">
                         <Star className="w-5 h-5 text-yellow-500" />
-                        <span className="text-3xl font-bold">4.9</span>
+                        <span className="text-3xl font-bold">
+                          {careerStats.hasRealData ? (analysisData?.matchScore || 85) : 65}
+                        </span>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-300">
-                        Average rating with chronological career analysis
+                        {careerStats.hasRealData ? "Match score with real career data" : "Basic interview readiness"}
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Document Analysis Summary - Only show if we have documents */}
+              {jobData.uploadedFiles && jobData.uploadedFiles.length > 0 && !isLoading && (
+                <div className="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-700">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-lg">📄</span>
+                    <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">Document Analysis Results</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    {jobData.uploadedFiles.map((fileName, index) => {
+                      const storedAnalyses = localStorage.getItem("documentAnalyses")
+                      let documentAnalyses: any[] = []
+
+                      try {
+                        documentAnalyses = storedAnalyses ? JSON.parse(storedAnalyses) : []
+                      } catch (error) {
+                        console.warn("Failed to parse document analyses for display")
+                      }
+
+                      const analysis = documentAnalyses[index]
+
+                      return (
+                        <div key={index} className="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-5 h-5 text-blue-500" />
+                              <span className="font-medium text-gray-900 dark:text-gray-100">{fileName}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {analysis && !analysis.error ? (
+                                <Badge className="bg-green-500 text-white text-xs">
+                                  {analysis.documentType || 'processed'}
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive" className="text-xs">
+                                  extraction failed
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          {analysis && !analysis.error ? (
+                            <div className="space-y-3">
+                              {/* Real Data Stats */}
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {analysis.experienceDetails?.workHistory && analysis.experienceDetails.workHistory.length > 0 && (
+                                  <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                    <div className="font-semibold text-blue-800 dark:text-blue-200">
+                                      {analysis.experienceDetails.workHistory.length}
+                                    </div>
+                                    <div className="text-xs text-blue-600 dark:text-blue-400">Roles</div>
+                                  </div>
+                                )}
+                                {analysis.extractedSkills && analysis.extractedSkills.length > 0 && (
+                                  <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                    <div className="font-semibold text-green-800 dark:text-green-200">
+                                      {analysis.extractedSkills.length}
+                                    </div>
+                                    <div className="text-xs text-green-600 dark:text-green-400">Skills</div>
+                                  </div>
+                                )}
+                                {analysis.experienceDetails?.companies && analysis.experienceDetails.companies.length > 0 && (
+                                  <div className="text-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                                    <div className="font-semibold text-purple-800 dark:text-purple-200">
+                                      {analysis.experienceDetails.companies.length}
+                                    </div>
+                                    <div className="text-xs text-purple-600 dark:text-purple-400">Companies</div>
+                                  </div>
+                                )}
+                                {analysis.keyAchievements && analysis.keyAchievements.length > 0 && (
+                                  <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                                    <div className="font-semibold text-yellow-800 dark:text-yellow-200">
+                                      {analysis.keyAchievements.length}
+                                    </div>
+                                    <div className="text-xs text-yellow-600 dark:text-yellow-400">Achievements</div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Show summary if available */}
+                              {analysis.summary && (
+                                <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                                  <div className="font-semibold text-gray-800 dark:text-gray-200 mb-2 text-sm">
+                                    📋 Analysis Summary:
+                                  </div>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                                    {analysis.summary}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                              <div className="text-sm text-red-700 dark:text-red-300">
+                                ❌ Could not extract data from this document. 
+                                {analysis?.errorReason && ` Reason: ${analysis.errorReason}`}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Session Info */}
               {!isLoading && (
@@ -1027,10 +1079,13 @@ export default function EnhancedSummaryPage() {
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-2">
                       <span className="text-lg">🤖</span>
-                      <span className="font-semibold text-yellow-800 dark:text-yellow-200">Enhanced Chronological AI Session Active</span>
+                      <span className="font-semibold text-yellow-800 dark:text-yellow-200">
+                        {careerStats.hasRealData ? "Real Data AI Session Active" : "Basic AI Session Ready"}
+                      </span>
                     </div>
                     <div className="text-sm text-yellow-700 dark:text-yellow-300 font-mono">
-                      Session ID: chronological_{Math.random().toString(36).substr(2, 9)} | {chronologicalExperience.length} roles analyzed | {careerStats.totalExperience || 'Multiple years'} experience
+                      Session ID: {careerStats.hasRealData ? 'real_data' : 'basic'}_{Math.random().toString(36).substr(2, 9)} | 
+                      {careerStats.hasRealData ? ` ${careerStats.totalRoles} roles | ${careerStats.totalSkills} skills` : ' Basic mode'}
                     </div>
                   </div>
                 </div>
@@ -1048,11 +1103,11 @@ export default function EnhancedSummaryPage() {
                     {isStartingInterview ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                        Starting Chronological Interview...
+                        Starting Interview Session...
                       </>
                     ) : (
                       <>
-                        🎤 Start Career-Based Interview
+                        🎤 {careerStats.hasRealData ? "Start Real-Data Interview" : "Start Basic Interview"}
                         <ArrowRight className="w-5 h-5 ml-2" />
                       </>
                     )}
@@ -1066,9 +1121,4 @@ export default function EnhancedSummaryPage() {
       </main>
     </div>
   )
-}="space-y-4" >
-                          <Skeleton className="h-6 w-3/4" />
-                          <Skeleton className="h-20 w-full" />
-                        </div >
-                      ) : (
-  <div className
+}
