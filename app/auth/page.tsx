@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { signIn, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -109,16 +110,18 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-accent/10 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-800 flex items-center justify-center p-4">
       <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8 items-center">
         
         {/* Left side - Marketing content */}
         <div className="hidden lg:block space-y-8">
           <div className="space-y-4">
-            <h1 className="text-4xl font-bold text-foreground">
-              PassInterview.AI
-            </h1>
-            <p className="text-xl text-muted-foreground">
+            <Link href="/" className="block">
+              <h1 className="text-4xl font-bold text-white hover:text-gray-200 transition-colors cursor-pointer">
+                PassInterview.AI
+              </h1>
+            </Link>
+            <p className="text-xl text-white/80">
               L'assistente AI che ti aiuta durante le interviste reali. Ascolta e genera risposte personalizzate in tempo reale.
             </p>
           </div>
@@ -167,7 +170,7 @@ export default function AuthPage() {
         </div>
 
         {/* Right side - Auth forms */}
-        <Card className="w-full max-w-md mx-auto shadow-lg">
+        <Card className="w-full max-w-md mx-auto shadow-2xl bg-white/95 backdrop-blur-sm border-0">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">
               {isLogin ? "Accedi" : "Registrati"}
