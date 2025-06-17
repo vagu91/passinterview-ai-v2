@@ -107,7 +107,7 @@ Respond ONLY with JSON.`
       model: openai('gpt-4o-mini'),
       prompt: analysisPrompt,
       temperature: 0.2,
-      maxTokens: 400,
+      maxTokens: 200, // Reduced for faster processing
     })
 
     // Parse JSON response with proper typing
