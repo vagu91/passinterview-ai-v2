@@ -1,5 +1,3 @@
-// app/api/interview-response/route.ts - ENHANCED VERSION WITH CHRONOLOGICAL EXPERIENCE INTEGRATION
-
 import { streamText } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { NextRequest } from 'next/server'
@@ -8,7 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     const { question, userProfile, jobTitle, language = 'en', documentAnalyses = [] } = await req.json()
 
-    console.log("Generating enhanced chronological interview response for:", { question, jobTitle, language })
+    console.log("Generating enhanced interview response for:", { question, jobTitle, language })
 
     if (!process.env.OPENAI_API_KEY) {
       throw new Error('OpenAI API key not configured')
@@ -21,20 +19,20 @@ export async function POST(req: NextRequest) {
     const questionType = analyzeQuestionType(originalQuestion)
     console.log("Question type detected:", questionType)
 
-    // Build comprehensive chronological context in English
+    // Build comprehensive context in English
     let context = `CANDIDATE PROFILE: ${userProfile}\n\n`
 
     if (documentAnalyses && documentAnalyses.length > 0) {
-      context += "CHRONOLOGICAL WORK EXPERIENCE AND CAREER DATA:\n"
+      context += "WORK EXPERIENCE AND CAREER DATA:\n"
       documentAnalyses.forEach((doc: any, index: number) => {
         if (doc && doc.summary) {
           context += `- Document ${index + 1}: ${doc.summary}\n`
 
-          // Add chronological work history
+          // Add work history
           if (doc.experienceDetails?.workHistory && doc.experienceDetails.workHistory.length > 0) {
-            context += `\nCHRONOLOGICAL WORK HISTORY (Most Recent First):\n`
+            context += `\nWORK HISTORY (Most Recent First):\n`
             doc.experienceDetails.workHistory.forEach((job: any, jobIndex: number) => {
-              context += `${jobIndex + 1}. ${job.position} at ${job.company} (${job.startDate} - ${job.endDate})\n`
+              context += `${jobIndex + 1}. ${job.position || 'Professional Role'} at ${job.company || 'Organization'} (${job.startDate || 'Start Date'} - ${job.endDate || 'End Date'})\n`
               if (job.responsibilities && job.responsibilities.length > 0) {
                 context += `   Responsibilities: ${job.responsibilities.join(', ')}\n`
               }
@@ -96,18 +94,18 @@ export async function POST(req: NextRequest) {
           context += "\n"
         }
       })
-      context += "\nIMPORTANT: Use the above REAL chronological work experience data when answering experience-based questions. Reference actual company names, job titles, timeframes, and achievements from the candidate's documented career history.\n"
+      context += "\nIMPORTANT: Use the above REAL work experience data when answering experience-based questions. Reference actual company names, job titles, timeframes, and achievements from the candidate's documented career history.\n"
     }
 
-    // Create enhanced prompt that generates DIRECTLY in target language with chronological focus
-    const responsePrompt = createChronologicalPromptByType(originalQuestion, context, jobTitle, questionType, language)
+    // Create enhanced prompt that generates DIRECTLY in target language
+    const responsePrompt = createPromptByType(originalQuestion, context, jobTitle, questionType, language)
 
-    // Single AI generation in target language with chronological integration
+    // Single AI generation in target language
     const result = await streamText({
       model: openai('gpt-3.5-turbo'),
       prompt: responsePrompt,
       temperature: 0.7,
-      maxTokens: 350, // Increased for detailed chronological responses
+      maxTokens: 350,
     })
 
     // Create streaming response
@@ -131,7 +129,7 @@ export async function POST(req: NextRequest) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
           }
 
-          console.log("Chronological response completed in language:", language)
+          console.log("Response completed in language:", language)
 
           // Send completion signal
           const completion = { type: 'done' }
@@ -141,7 +139,7 @@ export async function POST(req: NextRequest) {
           console.error('Streaming error:', error)
           const errorChunk = {
             type: 'error',
-            message: 'Error generating chronological response'
+            message: 'Error generating response'
           }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`))
         } finally {
@@ -160,10 +158,10 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error generating enhanced chronological interview response:', error)
+    console.error('Error generating enhanced interview response:', error)
 
-    // Generate AI-powered fallback response with chronological focus
-    return generateChronologicalFallbackResponse(req)
+    // NO FALLBACK HARDCODATO - solo messaggio di errore generico
+    return generateErrorResponse(req)
   }
 }
 
@@ -189,8 +187,8 @@ function analyzeQuestionType(question: string): 'technical' | 'experience' | 'ge
   return 'general'
 }
 
-// Enhanced function to create chronological prompt that generates DIRECTLY in target language
-function createChronologicalPromptByType(question: string, context: string, jobTitle: string, questionType: string, language: string): string {
+// Enhanced function to create prompt that generates DIRECTLY in target language
+function createPromptByType(question: string, context: string, jobTitle: string, questionType: string, language: string): string {
   const languageInstruction = language === 'en'
     ? 'Respond in English.'
     : `Respond in ${getLanguageName(language)}. Use natural, fluent ${getLanguageName(language)} throughout your response.`
@@ -202,7 +200,11 @@ ${context}
 CRITICAL INSTRUCTIONS:
 - Respond DIRECTLY as the candidate - no quotes, no meta-commentary
 - ${languageInstruction}
-- Analyze the question type and respond appropriately:
+- Use ONLY information from your provided work history and documented experience
+- Never make up companies, dates, or experiences that are not in your documented career history
+- If you don't have specific documented experience for a question, be honest and focus on transferable skills from your actual background
+
+RESPONSE GUIDELINES BASED ON QUESTION TYPE:
 
 FOR TECHNICAL QUESTIONS (asking about specific tools, technologies, frameworks, concepts):
 - Provide technical explanations focusing on what the technology/tool is
@@ -213,28 +215,28 @@ FOR TECHNICAL QUESTIONS (asking about specific tools, technologies, frameworks, 
 - Length: 3-4 sentences with good technical depth
 
 FOR EXPERIENCE QUESTIONS (explicitly asking for personal examples, past projects, how you did something):
-- YOU MUST use specific information from your CHRONOLOGICAL WORK HISTORY above
+- YOU MUST use specific information from your WORK HISTORY above
 - Extract concrete details: company names, job titles, timeframes, responsibilities, technologies, achievements
-- Use REAL information from the provided chronological career data - do NOT make up generic examples
+- Use REAL information from the provided career data - do NOT make up examples
 - Include specific details like: "At [actual company name] as [actual job title] from [actual timeframe]", "In the [specific project/role]", "Using [actual technologies mentioned]"
-- Reference actual experiences, roles, and achievements from your documented work history in chronological context
-- If no specific information is available in your work history for the question, be honest and focus on transferable skills from your documented experience
-- Always structure responses chronologically when discussing multiple experiences (most recent first)
-- Length: 3-4 sentences with concrete details from your actual chronological work history
+- Reference actual experiences, roles, and achievements from your documented work history
+- If no specific information is available in your work history for the question, be honest: "While I don't have a specific documented example of this in my career history, I can discuss how my experience at [actual company] with [actual technology/responsibility] would apply..."
+- Always structure responses by timeframe when discussing multiple experiences (most recent first)
+- Length: 3-4 sentences with concrete details from your actual work history
 
 FOR BEHAVIORAL QUESTIONS (how you handle situations, your approach, strengths/weaknesses):
 - Draw examples from your documented work history and career progression
 - Use your actual career progression to demonstrate growth and learning
-- Reference specific roles and companies from your chronological experience
+- Reference specific roles and companies from your experience
 - Show how your approach evolved through different positions
 - Length: 3-4 sentences connecting behavior to real career examples
 
 FOR SITUATIONAL QUESTIONS (hypothetical scenarios, "what would you do if"):
 - Base your approach on lessons learned from your documented work experience
-- Reference similar situations you've handled in your actual roles
-- Draw on your chronological career progression to show problem-solving evolution
+- Reference similar situations you've handled in your actual roles when applicable
+- Draw on your career progression to show problem-solving evolution
 - Connect hypothetical scenarios to real experience when possible
-- Length: 3-4 sentences grounding hypothetical in real experience
+- Length: 3-4 sentences grounding hypothetical in real experience when available
 
 FOR GENERAL QUESTIONS:
 - Provide thoughtful, professional responses that align with your documented background
@@ -242,17 +244,18 @@ FOR GENERAL QUESTIONS:
 - Demonstrate your personality and communication skills while referencing your career journey
 - Length: 2-3 sentences, concise but complete
 
-CHRONOLOGICAL EXPERIENCE INTEGRATION:
+EXPERIENCE INTEGRATION:
 - When discussing experience, always order from most recent to oldest
 - Use actual company names, job titles, and timeframes from your work history
 - Reference specific technologies, achievements, and responsibilities from documented roles
-- Show career progression and growth through chronological narrative
+- Show career progression and growth through narrative
 - Connect past experiences to current role requirements
 
-GENERAL APPROACH:
+AUTHENTICITY REQUIREMENTS:
 - Be natural and conversational like a real person
 - Provide substantive, detailed responses using your actual career data
 - Show both knowledge and practical application from real work experience
+- If you lack specific documented experience for a question, acknowledge this honestly while leveraging what you do have
 - ${languageInstruction}
 
 QUESTION: ${question}
@@ -260,70 +263,28 @@ QUESTION: ${question}
 Your response:`
 }
 
-// Function to generate AI-powered fallback response with chronological focus
-async function generateChronologicalFallbackResponse(req: NextRequest) {
+// Function to generate error response without hardcoded fallbacks
+async function generateErrorResponse(req: NextRequest) {
   try {
     const requestBody = await req.json().catch(() => ({}))
-    const fallbackLanguage = requestBody.language || 'en'
-    const fallbackQuestion = requestBody.question || 'Question not available'
-    const jobTitle = requestBody.jobTitle || 'this position'
-    const documentAnalyses = requestBody.documentAnalyses || []
+    const errorLanguage = requestBody.language || 'en'
+    const errorQuestion = requestBody.question || 'Question not available'
 
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('No API key for fallback')
-    }
+    const errorMessage = errorLanguage === 'en' 
+      ? "I apologize, but I'm having difficulty accessing my background information right now. Could you please rephrase the question or try again?"
+      : "Mi dispiace, ma sto avendo difficoltà ad accedere alle mie informazioni di background in questo momento. Potresti riformulare la domanda o riprovare?"
 
-    const languageInstruction = fallbackLanguage === 'en'
-      ? 'Respond in English.'
-      : `Respond in ${getLanguageName(fallbackLanguage)}.`
-
-    // Extract basic chronological info if available
-    let experienceContext = ""
-    if (documentAnalyses.length > 0) {
-      const firstDoc = documentAnalyses[0]
-      if (firstDoc.experienceDetails?.workHistory && firstDoc.experienceDetails.workHistory.length > 0) {
-        const recentRole = firstDoc.experienceDetails.workHistory[0]
-        experienceContext = `Drawing from experience as ${recentRole.position} at ${recentRole.company}, `
-      } else if (firstDoc.experienceDetails?.totalYears) {
-        experienceContext = `With ${firstDoc.experienceDetails.totalYears} of professional experience, `
-      }
-    }
-
-    // Generate fallback directly in target language with chronological context
-    const fallbackPrompt = `Generate a professional interview response for a candidate applying for ${jobTitle}. 
-    
-Question: "${fallbackQuestion}"
-    
-${experienceContext ? `Context: ${experienceContext}` : ''}
-
-Create a confident, professional response that demonstrates competency and interest in the role.
-Keep it concise (2-3 sentences) and professional.
-${languageInstruction}`
-
-    const fallbackResult = await streamText({
-      model: openai('gpt-3.5-turbo'),
-      prompt: fallbackPrompt,
-      temperature: 0.5,
-      maxTokens: 150,
-    })
-
-    let fallbackResponse = ''
-    for await (const delta of fallbackResult.textStream) {
-      fallbackResponse += delta
-    }
-
-    // Return fallback streaming response
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
       start(controller) {
         try {
           const metadata = {
             type: 'metadata',
-            question: fallbackQuestion
+            question: errorQuestion
           }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`))
 
-          const words = fallbackResponse.split(' ')
+          const words = errorMessage.split(' ')
           words.forEach((word, index) => {
             const chunk = {
               type: 'delta',
@@ -338,7 +299,7 @@ ${languageInstruction}`
         } catch (error) {
           const errorChunk = {
             type: 'error',
-            message: 'Error generating response'
+            message: 'Service temporarily unavailable'
           }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`))
         } finally {
@@ -357,46 +318,13 @@ ${languageInstruction}`
     })
 
   } catch (fallbackError) {
-    console.error('Chronological fallback generation failed:', fallbackError)
+    console.error('Error response generation failed:', fallbackError)
 
-    // Last resort hardcoded response with professional context
-    const requestBody = await req.json().catch(() => ({}))
-    const minimalResponse = "Thank you for the question. Based on my professional experience and career progression, I believe I can contribute effectively to this position and help the team achieve its objectives."
-
-    const encoder = new TextEncoder()
-    const stream = new ReadableStream({
-      start(controller) {
-        try {
-          const metadata = {
-            type: 'metadata',
-            question: requestBody.question || 'Question not available'
-          }
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(metadata)}\n\n`))
-
-          const words = minimalResponse.split(' ')
-          words.forEach((word, index) => {
-            const chunk = {
-              type: 'delta',
-              content: index === 0 ? word : ` ${word}`
-            }
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
-          })
-
-          const completion = { type: 'done' }
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(completion)}\n\n`))
-
-        } finally {
-          controller.close()
-        }
-      }
-    })
-
-    return new Response(stream, {
+    // Ultimate fallback - plain text response
+    return new Response('Service temporarily unavailable. Please try again.', {
+      status: 500,
       headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Transfer-Encoding': 'chunked',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
+        'Content-Type': 'text/plain',
       }
     })
   }

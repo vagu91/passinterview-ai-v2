@@ -2,13 +2,16 @@ import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import { NextAuthOptions } from "next-auth"
 
+// Check if Google OAuth is configured
+const hasGoogleCredentials = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+
 export const authOptions: NextAuthOptions = {
-  providers: [
+  providers: hasGoogleCredentials ? [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
-  ],
+  ] : [],
   pages: {
     signIn: '/auth',
   },
@@ -31,7 +34,7 @@ export const authOptions: NextAuthOptions = {
       return session
     }
   },
-  debug: process.env.NODE_ENV === 'development',
+  debug: false, // Disable debug to reduce console noise
 }
 
 export default NextAuth(authOptions)
